@@ -1,5 +1,0 @@
-# depslib dependency file v1.0
-1575768437 source:c:\users\billaros\gameoflife\gameoflife\main.c
-	<stdio.h>
-	<stdlib.h>
-
