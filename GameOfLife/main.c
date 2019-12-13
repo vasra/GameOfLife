@@ -2,26 +2,37 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define SIZE 4
+#define SIZE 10
 
-void initial_state(char life_beginning[SIZE][SIZE]);
+void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy[SIZE][SIZE]);
 void print_grid(char life[SIZE][SIZE]);
-void next_generation(char life_current_generation[SIZE][SIZE], char life_next_generation[SIZE][SIZE]);
+void next_generation(char current_generation[SIZE][SIZE], char current_generation_copy[SIZE][SIZE]);
 
 int main()
 {
-    char life_beginning[SIZE][SIZE];
-    char life_next_generation[SIZE][SIZE];
-    srand(time(NULL));
+    char life[SIZE][SIZE];
+    char life_copy[SIZE][SIZE];
+    char (*current_generation)[SIZE] = life;
+    char (*current_generation_copy)[SIZE] = life_copy;
 
-    initial_state(life_beginning);
-    print_grid(life_beginning);
-    next_generation(life_beginning, life_next_generation);
-    print_grid(life_next_generation);
+    srand(time(NULL));
+    initial_state(current_generation, current_generation_copy);
+
+    printf("------------------------------------\n");
+    printf("    Welcome to the Game Of life!\n");
+    printf("------------------------------------\n\n");
+
+    print_grid(current_generation);
+    while(1)
+    {
+        next_generation(current_generation, current_generation_copy);
+        print_grid(current_generation);
+    }
+
     return 0;
 }
 
-void initial_state(char life_beginning[SIZE][SIZE])
+void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy[SIZE][SIZE])
 {
     float probability;
 
@@ -31,19 +42,15 @@ void initial_state(char life_beginning[SIZE][SIZE])
         {
             probability = (float)rand() / (float)((unsigned)RAND_MAX + 1);
             if(probability >= 0.5f)
-                life_beginning[i][j] = 'X';
+                first_generation[i][j] = first_generation_copy[i][j] = 'X';
             else
-                life_beginning[i][j] = '-';
+                first_generation[i][j] = first_generation_copy[i][j] = '-';
         }
     }
 }
 
 void print_grid(char life[SIZE][SIZE])
 {
-    printf("------------------------------------\n");
-    printf("    Welcome to the Game Of Life!\n");
-    printf("------------------------------------\n\n");
-
     for (int i = 0; i< SIZE; i++)
     {
         for(int j = 0; j < SIZE; j++)
@@ -53,9 +60,10 @@ void print_grid(char life[SIZE][SIZE])
                 printf("\n");
         }
     }
+    printf("\n");
 }
 
-void next_generation(char life_current_generation[SIZE][SIZE], char life_next_generation[SIZE][SIZE])
+void next_generation(char current_generation[SIZE][SIZE], char current_generation_copy[SIZE][SIZE])
 {
     int neighbors;
 
@@ -70,20 +78,25 @@ void next_generation(char life_current_generation[SIZE][SIZE], char life_next_ge
                 {
                     if(k > -1 && k < SIZE && l > -1 && l < SIZE)
                     {
-                        if(life_current_generation[k][l] == 'X')
+                        if(current_generation_copy[k][l] == 'X')
                             neighbors++;
                     }
                 }
             }
-            if(life_current_generation[i][j] == 'X')
+            if(current_generation_copy[i][j] == 'X')
                 neighbors--;
 
-                printf("Neighbors %d ", neighbors);
-            if(neighbors == 3 || (neighbors == 2 && life_current_generation[i][j] == 'X'))
-                life_next_generation[i][j] = 'X';
+            if(neighbors == 3 || (neighbors == 2 && current_generation_copy[i][j] == 'X'))
+                current_generation[i][j] = 'X';
             else
-                life_next_generation[i][j] = '-';
+                current_generation[i][j] = '-';
         }
-        printf("\n");
+    }
+    for(int i = 0; i < SIZE; i++)
+    {
+        for(int j = 0; j < SIZE; j++)
+        {
+            current_generation_copy[i][j] = current_generation[i][j];
+        }
     }
 }
