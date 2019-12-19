@@ -14,21 +14,30 @@ int main()
     char life_copy[SIZE][SIZE];
     char (*current_generation)[SIZE] = life;
     char (*current_generation_copy)[SIZE] = life_copy;
+    char (*temp)[SIZE];
 
     srand(time(NULL));
     initial_state(current_generation, current_generation_copy);
 
     printf("------------------------------------\n");
-    printf("    Welcome to the Game Of life!\n");
+    printf("    Welcome to the Game Of Life!\n");
     printf("------------------------------------\n\n");
 
     print_grid(current_generation);
-    while(1)
+    for(int i = 0; i < 4; i++)
     {
         next_generation(current_generation, current_generation_copy);
         print_grid(current_generation);
-    }
 
+        /*
+         * Swap the addresses of the two tables. That way, we avoid copying the contents
+         * of current_generation to current_generation_copy in the next_generation function.
+         * Each round, the addresses are exchanged, saving time from running a loop to copy the contents
+         */
+        temp = current_generation;
+        current_generation = current_generation_copy;
+        current_generation_copy = temp;
+    }
     return 0;
 }
 
@@ -92,6 +101,11 @@ void next_generation(char current_generation[SIZE][SIZE], char current_generatio
                 current_generation[i][j] = '-';
         }
     }
+
+    /*
+     * This nested loop is not needed anymore. Instead of copying the contents of current_generation
+     * into current_generation_copy every round, we simply swap their addresses
+
     for(int i = 0; i < SIZE; i++)
     {
         for(int j = 0; j < SIZE; j++)
@@ -99,4 +113,5 @@ void next_generation(char current_generation[SIZE][SIZE], char current_generatio
             current_generation_copy[i][j] = current_generation[i][j];
         }
     }
+     */
 }
