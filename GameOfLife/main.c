@@ -2,11 +2,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define SIZE 10
+#define SIZE 5
 
 void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy[SIZE][SIZE]);
 void print_grid(char life[SIZE][SIZE]);
 void next_generation(char current_generation[SIZE][SIZE], char current_generation_copy[SIZE][SIZE]);
+void swap(char (**a)[SIZE], char (**b)[SIZE]);
 
 int main()
 {
@@ -14,9 +15,8 @@ int main()
     char life_copy[SIZE][SIZE];
     char (*current_generation)[SIZE] = life;
     char (*current_generation_copy)[SIZE] = life_copy;
-    char (*temp)[SIZE];
 
-    srand(time(NULL));
+    /* Seed the random number generator, and generate the first generation according to that. */
     initial_state(current_generation, current_generation_copy);
 
     printf("------------------------------------\n");
@@ -24,6 +24,11 @@ int main()
     printf("------------------------------------\n\n");
 
     print_grid(current_generation);
+
+    /*
+     * The Game Of Life will run for 5 generations. Modify the number
+     * of generations as desired.
+     */
     for(int i = 0; i < 4; i++)
     {
         next_generation(current_generation, current_generation_copy);
@@ -32,18 +37,20 @@ int main()
         /*
          * Swap the addresses of the two tables. That way, we avoid copying the contents
          * of current_generation to current_generation_copy in the next_generation function.
-         * Each round, the addresses are exchanged, saving time from running a loop to copy the contents
+         * Each round, the addresses are exchanged, saving time from running a loop to copy the contents.
          */
-        temp = current_generation;
-        current_generation = current_generation_copy;
-        current_generation_copy = temp;
+        swap(&current_generation, &current_generation_copy);
     }
     return 0;
 }
 
+/* Randomly generates the first generation. The living organisms
+ * are represented by an 'X', and the dead organisms by a '-'.
+ */
 void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy[SIZE][SIZE])
 {
     float probability;
+    srand(time(NULL));
 
     for(int i = 0; i < SIZE; i++)
     {
@@ -72,6 +79,11 @@ void print_grid(char life[SIZE][SIZE])
     printf("\n");
 }
 
+/*
+ * Produces the next generation. It checks the contents of current_generation_copy,
+ * calculates the results, and stores them in current_generation. The living organisms
+ * are represented by an 'X', and the dead organisms by a '-'.
+ */
 void next_generation(char current_generation[SIZE][SIZE], char current_generation_copy[SIZE][SIZE])
 {
     int neighbors;
@@ -114,4 +126,11 @@ void next_generation(char current_generation[SIZE][SIZE], char current_generatio
         }
     }
      */
+}
+
+void swap(char (**a)[SIZE], char (**b)[SIZE])
+{
+    char (*temp)[SIZE] = *a;
+    *a = *b;
+    *b = temp;
 }
