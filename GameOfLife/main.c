@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "mpi.h"
 
-#define SIZE 5
+#define SIZE 16
+#define NDIMS 2
+#define PROCESSES 4
 
 void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy[SIZE][SIZE]);
 void print_grid(char life[SIZE][SIZE]);
@@ -16,6 +19,28 @@ int main()
     char (*current_generation)[SIZE] = life;
     char (*current_generation_copy)[SIZE] = life_copy;
 
+    int dim_size[NDIMS], periods[NDIMS], reorder, rank, nrow, ncol;
+    MPI_Comm cartesian2D;
+
+    /*
+     *
+     * MISTAKE! FIX!
+     */
+    if( PROCESSES * PROCESSES == SIZE )
+        dims[0] = dims[1] = PROCESSES;
+    else
+    {
+        dims[0] = SIZE / PROCESSES;
+        dims[1] = dims[0] / 2;
+    }
+
+    /* Our Cartesian topology will be a torus, so both fields of "periods" will have value of 1 */
+    periods[0] = 1;
+    periods[1] = 1;
+
+    /* We allow MPI to efficiently reorder the processes among the different processors. */
+    reorder = 1;
+
     /* Seed the random number generator, and generate the first generation according to that. */
     initial_state(current_generation, current_generation_copy);
 
@@ -25,6 +50,9 @@ int main()
 
     print_grid(current_generation);
 
+    MPI_Init(NULL, NULL);
+    MPI_Cart_create(MPI_COMM_WORLD, NDIMS, dims, periods, reorder, &cartesian2D);
+    MPI_Comm_size(cartesian2D, &processes);
     /*
      * The Game Of Life will run for 5 generations. Modify the number
      * of generations as desired.
@@ -45,7 +73,7 @@ int main()
 }
 
 /* Randomly generates the first generation. The living organisms
- * are represented by an 'X', and the dead organisms by a '-'.
+ * are represented by an 1, and the dead organisms by a 0.
  */
 void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy[SIZE][SIZE])
 {
@@ -58,9 +86,9 @@ void initial_state(char first_generation[SIZE][SIZE], char first_generation_copy
         {
             probability = (float)rand() / (float)((unsigned)RAND_MAX + 1);
             if(probability >= 0.5f)
-                first_generation[i][j] = first_generation_copy[i][j] = 'X';
+                first_generation[i][j] = first_generation_copy[i][j] = 1;
             else
-                first_generation[i][j] = first_generation_copy[i][j] = '-';
+                first_generation[i][j] = first_generation_copy[i][j] = 0;
         }
     }
 }
@@ -71,7 +99,7 @@ void print_grid(char life[SIZE][SIZE])
     {
         for(int j = 0; j < SIZE; j++)
         {
-            printf("%c ", life[i][j]);
+            printf("%d ", life[i][j]);
             if( j == SIZE - 1)
                 printf("\n");
         }
@@ -82,9 +110,9 @@ void print_grid(char life[SIZE][SIZE])
 /*
  * Produces the next generation. It checks the contents of current_generation_copy,
  * calculates the results, and stores them in current_generation. The living organisms
- * are represented by an 'X', and the dead organisms by a '-'.
+ * are represented by a 1, and the dead organisms by a 0.
  */
-void next_generation(char current_generation[SIZE][SIZE], char current_generation_copy[SIZE][SIZE])
+void inline next_generation(char current_generation[SIZE][SIZE], char current_generation_copy[SIZE][SIZE])
 {
     int neighbors;
 
@@ -99,18 +127,18 @@ void next_generation(char current_generation[SIZE][SIZE], char current_generatio
                 {
                     if(k > -1 && k < SIZE && l > -1 && l < SIZE)
                     {
-                        if(current_generation_copy[k][l] == 'X')
+                        if(current_generation_copy[k][l] == 1)
                             neighbors++;
                     }
                 }
             }
-            if(current_generation_copy[i][j] == 'X')
+            if(current_generation_copy[i][j] == 1)
                 neighbors--;
 
-            if(neighbors == 3 || (neighbors == 2 && current_generation_copy[i][j] == 'X'))
-                current_generation[i][j] = 'X';
+            if(neighbors == 3 || (neighbors == 2 && current_generation_copy[i][j] == 1))
+                current_generation[i][j] = 1;
             else
-                current_generation[i][j] = '-';
+                current_generation[i][j] = 0;
         }
     }
 
@@ -128,7 +156,7 @@ void next_generation(char current_generation[SIZE][SIZE], char current_generatio
      */
 }
 
-void swap(char (**a)[SIZE], char (**b)[SIZE])
+void inline swap(char (**a)[SIZE], char (**b)[SIZE])
 {
     char (*temp)[SIZE] = *a;
     *a = *b;
