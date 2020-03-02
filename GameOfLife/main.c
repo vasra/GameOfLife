@@ -9,8 +9,9 @@
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
 void Print_grid(int rows, int columns, char *life);
-void Next_generation(int rows, int columns, char *life, char *life_copy);
-void Swap(char **a, char **b);
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
+void inline Swap(char **a, char **b);
 
 int main()
 {
@@ -151,28 +152,7 @@ int main()
     }
 #endif // DEBUG
 
-    MPI_Irecv( life + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests[0] );
-    MPI_Irecv( life + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests[1] );
-    MPI_Irecv( life + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests[2] );
-    MPI_Irecv( life + (columns * 2) - 1, 1, column_datatype, east_rank, east_rank, cartesian2D, &receive_requests[3] );
 
-    MPI_Irecv( life, 1, MPI_CHAR, northwest_rank, northwest_rank, cartesian2D, &receive_requests[4] );
-    MPI_Irecv( life + columns - 1, 1, MPI_CHAR, northeast_rank, northeast_rank, cartesian2D, &receive_requests[5] );
-    MPI_Irecv( life + columns * (rows - 1), 1, MPI_CHAR, southwest_rank, southwest_rank, cartesian2D, &receive_requests[6] );
-    MPI_Irecv( life + (columns * rows) - 1, 1, MPI_CHAR, southeast_rank, southeast_rank, cartesian2D, &receive_requests[7] );
-
-    MPI_Isend( life + (rows - 2) * columns + 1, 1, row_datatype, south_rank, rank, cartesian2D, &send_requests[0] );
-    MPI_Isend( life + columns + 1, 1, row_datatype, north_rank, rank, cartesian2D, &send_requests[1] );
-    MPI_Isend( life + (columns * 2) - 2, 1, column_datatype, east_rank, rank, cartesian2D, &send_requests[2] );
-    MPI_Isend( life + columns + 1, 1, column_datatype, west_rank, rank, cartesian2D, &send_requests[3] );
-
-    MPI_Isend( life + columns * (rows - 2) + 1, 1, MPI_CHAR, southeast_rank, rank, cartesian2D, &send_requests[4] );
-    MPI_Isend( life + columns * (rows - 1) - 2, 1, MPI_CHAR, southwest_rank, rank, cartesian2D, &send_requests[5] );
-    MPI_Isend( life + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests[6] );
-    MPI_Isend( life + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests[7] );
-
-    MPI_Waitall(8, receive_requests, statuses);
-    MPI_Waitall(8, send_requests, statuses);
 
 #ifdef DEBUG
     if(rank == 0)
@@ -202,18 +182,50 @@ int main()
      * The Game Of Life will run for 5 generations.
      * Modify the number of generations as desired.
      ***********************************************/
-//    for(int i = 0; i < 4; i++)
-//    {
-//        Next_generation(life, life_copy);
-//        Print_grid(life);
+    for(int i = 0; i < 2; i++)
+    {
+        MPI_Irecv( life + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests[0] );
+        MPI_Irecv( life + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests[1] );
+        MPI_Irecv( life + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests[2] );
+        MPI_Irecv( life + (columns * 2) - 1, 1, column_datatype, east_rank, east_rank, cartesian2D, &receive_requests[3] );
 
+        MPI_Irecv( life, 1, MPI_CHAR, northwest_rank, northwest_rank, cartesian2D, &receive_requests[4] );
+        MPI_Irecv( life + columns - 1, 1, MPI_CHAR, northeast_rank, northeast_rank, cartesian2D, &receive_requests[5] );
+        MPI_Irecv( life + columns * (rows - 1), 1, MPI_CHAR, southwest_rank, southwest_rank, cartesian2D, &receive_requests[6] );
+        MPI_Irecv( life + (columns * rows) - 1, 1, MPI_CHAR, southeast_rank, southeast_rank, cartesian2D, &receive_requests[7] );
+
+        MPI_Isend( life + (rows - 2) * columns + 1, 1, row_datatype, south_rank, rank, cartesian2D, &send_requests[0] );
+        MPI_Isend( life + columns + 1, 1, row_datatype, north_rank, rank, cartesian2D, &send_requests[1] );
+        MPI_Isend( life + (columns * 2) - 2, 1, column_datatype, east_rank, rank, cartesian2D, &send_requests[2] );
+        MPI_Isend( life + columns + 1, 1, column_datatype, west_rank, rank, cartesian2D, &send_requests[3] );
+
+        MPI_Isend( life + columns * (rows - 2) + 1, 1, MPI_CHAR, southeast_rank, rank, cartesian2D, &send_requests[4] );
+        MPI_Isend( life + columns * (rows - 1) - 2, 1, MPI_CHAR, southwest_rank, rank, cartesian2D, &send_requests[5] );
+        MPI_Isend( life + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests[6] );
+        MPI_Isend( life + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests[7] );
+
+        Next_generation_inner(rows, columns, life, life_copy);
+
+        MPI_Waitall(8, receive_requests, statuses);
+
+        Next_generation_outer(rows, columns, life, life_copy);
+
+        MPI_Waitall(8, send_requests, statuses);
+
+#ifdef DEBUG
+        if(rank == 0)
+        {
+            printf("Generation %d:\n", i);
+            Print_grid(rows, columns, life);
+        }
+#endif
         /************************************************************************************************
          * Swap the addresses of the two tables. That way, we avoid copying the contents
-         * of life to life_copy in the Next_generation function.
-         * Each round, the addresses are exchanged, saving time from running a loop to copy the contents.
+         * of life to life_copy. Each round, the addresses are exchanged, saving time from running
+         * a loop to copy the contents.
          ************************************************************************************************/
-//        Swap(&life, &life_copy);
-//    }
+        Swap(&life, &life_copy);
+    }
 
     /**< Clean up and exit */
     free(life);
@@ -225,7 +237,7 @@ int main()
 }
 
 /****************************************************************
- * Randomly generates the first generation. The living organisms
+ * Randomly produces the first generation. The living organisms
  * are represented by a 1, and the dead organisms by a 0.
  ****************************************************************/
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed)
@@ -272,35 +284,82 @@ void Print_grid(int rows, int columns, char *life)
 /*************************************************************************************
  * Produces the next generation. It checks the contents of life_copy,
  * calculates the results, and stores them in life. The living organisms
- * are represented by a 1, and the dead organisms by a 0.
+ * are represented by a 1, and the dead organisms by a 0. This function only
+ * calculates the inner organisms, while we wait to receive all the halo information
  *************************************************************************************/
-void inline Next_generation(int rows, int columns, char *life, char *life_copy)
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors;
-    for(int i = 0; i < rows; i++)
+    for(int i = 2; i < rows - 2; i++)
     {
-        for(int j = 0; j < columns; j++)
+        for(int j = 2; j < columns - 2; j++)
         {
-            neighbors = 0;
-            for(int k = i - 1; k <= i + 1; k++)
-            {
-                for(int l = j - 1; l <= j + 1; l++)
-                {
-                    if(k > -1 && k < rows && l > -1 && l < columns)
-                    {
-                        if( *(life_copy + k * columns + l) == 1)
-                            neighbors++;
-                    }
-                }
-            }
-            if( *(life_copy + i * columns + j) == 1)
-                neighbors--;
+            neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
+                        *(life + i * columns + (j - 1))                          +                *(life + i * columns + (j + 1))       +
+                        *(life + (i + 1) * columns + (j - 1)) + *(life + (i + 1) * columns + j) + *(life + (i + 1) * columns + (j + 1));
 
             if(neighbors == 3 || (neighbors == 2 && *(life_copy + i * columns + j) == 1))
                 *(life_copy + i * columns + j) = 1;
             else
                 *(life_copy + i * columns + j) = 0;
         }
+    }
+}
+
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy)
+{
+    int neighbors;
+
+    /**< Upper row */
+    for(int i = 1; i < columns - 1; i++)
+    {
+        neighbors = *(life + i - 1)               + *(life + i)  +              *(life + i + 1)               +
+                    *(life + columns + i - 1)                    +              *(life + columns + i + 1)     +
+                    *(life + columns * 2 + i - 1) + *(life + columns * 2 + i) + *(life + columns * 2 + i + 1);
+
+        if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns + i) == 1))
+                *(life_copy + columns + i) = 1;
+            else
+                *(life_copy + columns + i) = 0;
+    }
+
+    /**< Left column */
+    for(int i = 2; i < rows - 2; i++)
+    {
+        neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
+                    *(life + columns * i)                    +                      *(life + columns * i + 2)       +
+                    *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
+
+        if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns * i + 1) == 1))
+                *(life_copy + columns * i + 1) = 1;
+            else
+                *(life_copy + columns * i + 1) = 0;
+    }
+
+    /**< Right column */
+    for(int i = 2; i < rows - 2; i++)
+    {
+        neighbors = *(life + columns * i - 3) + *(life + columns * i - 2) + *(life + columns * i - 1)             +
+                    *(life + columns * (i + 1) - 3)                 +       *(life + columns * (i + 1) - 1)       +
+                    *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
+
+        if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (i + 1) - 2) == 1))
+                *(life_copy + columns * (i + 1) - 2) = 1;
+            else
+                *(life_copy + columns * (i + 1) - 2) = 0;
+    }
+
+    /**< Bottom row */
+    for(int i = 1; i < columns - 1; i++)
+    {
+        neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1)     +
+                    *(life + columns * (rows - 2) + i - 1)                    +                   *(life + columns * (rows - 2) + i + 1)     +
+                    *(life + columns * (rows - 1) + i - 1) + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
+
+        if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (rows - 2) + i) == 1))
+                *(life_copy + columns * (rows - 2) + i) = 1;
+            else
+                *(life_copy + columns * (rows - 2) + i) = 0;
     }
 }
 
