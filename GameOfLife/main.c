@@ -3,7 +3,9 @@
 #include <time.h>
 #include "mpi.h"
 
+/**< The size of one side of the square grid */
 #define SIZE 16
+/**< The number of dimensions of the grid */
 #define NDIMS 2
 #define DEBUG
 
@@ -73,6 +75,18 @@ int main()
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if( SIZE % processes != 0 )
+    {
+        if(rank == 0)
+        {
+            printf("Number of processes and size of grid do not match. The remainder of the division \"size of grid / processes\" must be 0, e.g. "
+                   "size = 320 and processes = 8 is an example of a valid input.\n");
+        }
+        MPI_Abort(MPI_COMM_WORLD, -1);
+        MPI_Finalize();
+        return -1;
+    }
 
     /**< Let MPI decide which is the best arrangement according to the number of processes and dimensions */
     MPI_Dims_create(processes, NDIMS, dim_size);
@@ -149,14 +163,7 @@ int main()
         printf("northeast %d\n", northeast_rank);
         printf("southeast %d\n", southeast_rank);
         printf("southwest %d\n", southwest_rank);
-    }
-#endif // DEBUG
 
-
-
-#ifdef DEBUG
-    if(rank == 0)
-    {
         MPI_Status     status;
         char* process2 = (char *)malloc( rows * columns * sizeof(char));
 
@@ -176,13 +183,13 @@ int main()
     {
         MPI_Send(life, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
     }
-#endif // DEBUG
+#endif
 
     /***********************************************
      * The Game Of Life will run for 5 generations.
      * Modify the number of generations as desired.
      ***********************************************/
-    for(int i = 0; i < 2; i++)
+    for(int i = 0; i < 5; i++)
     {
         MPI_Irecv( life + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests[0] );
         MPI_Irecv( life + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests[1] );
