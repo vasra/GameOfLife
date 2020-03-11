@@ -43,6 +43,7 @@ int main()
      * processes        - the total number of processes in the communicator
      * rows             - The number of rows of the local 2D matrix
      * columns          - The number of columns of the local 2D matrix
+     * seed             - The seed used to randomly create the first generation
      * cartesian2D      - Our new custom Communicator
      *******************************************************************************************************/
 
@@ -56,12 +57,13 @@ int main()
      * receive_requests - array holding all the requests for receiving messages
      * send_requests    - array holding all the requests for sending messages
      * statuses         - array holding the output of the Waitall operation
+     * t1, t2           - used for MPI_Wtime
      ************************************************************************************/
 
     MPI_Datatype   row_datatype, column_datatype;
     MPI_Request    receive_requests[8], send_requests[8];
     MPI_Status     statuses[8];
-
+    double         t1, t2;
     /**< initialize all dimensions to 0, because MPI_Dims_create will throw an error otherwise */
     dim_size[0] = dim_size[1] = 0;
 
@@ -73,6 +75,7 @@ int main()
 
     /**< Initialize MPI */
     MPI_Init(NULL, NULL);
+    MPI_Pcontrol(0);
     MPI_Comm_size(MPI_COMM_WORLD, &processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -170,6 +173,8 @@ int main()
 
     /**< Synchronize all the processes before we start */
     MPI_Barrier(cartesian2D);
+    t1 = MPI_Wtime();
+    MPI_Pcontrol(1);
 
 #ifdef DEBUG
     if(rank == 0)
@@ -253,6 +258,14 @@ int main()
         Swap(&life, &life_copy);
     }
 
+    MPI_Pcontrol(0);
+    t2 = MPI_Wtime();
+
+    if(rank == 0)
+    {
+        printf("Elapsed time is %f:\n", (t2 - t1) );
+    }
+
     /**< Clean up and exit */
     free(life);
     free(life_copy);
@@ -291,7 +304,7 @@ void Initial_state(int rows, int columns, char *first_generation, char *first_ge
 }
 
 /****************************************************************
- * Prints the entire grid to the terminal
+ * Prints the entire grid to the terminal. Used for debugging
  ****************************************************************/
 void Print_grid(int rows, int columns, char *life)
 {
