@@ -4,10 +4,10 @@
 #include "mpi.h"
 
 /**< The size of one side of the square grid */
-#define SIZE 16
+#define SIZE 1024
 /**< The number of dimensions of the grid */
 #define NDIMS 2
-#define DEBUG
+//#define DEBUG
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
 void Print_grid(int rows, int columns, char *life);
@@ -64,13 +64,14 @@ int main()
     MPI_Request    receive_requests[8], send_requests[8];
     MPI_Status     statuses[8];
     double         t1, t2;
+
     /**< initialize all dimensions to 0, because MPI_Dims_create will throw an error otherwise */
     dim_size[0] = dim_size[1] = 0;
 
-    /**< Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1. */
+    /**< Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1 */
     periods[0] = periods[1] = 1;
 
-    /**< We will allow MPI to efficiently reorder the processes among the different processors. */
+    /**< We will allow MPI to efficiently reorder the processes among the different processors */
     reorder = 1;
 
     /**< Initialize MPI */
@@ -166,8 +167,8 @@ int main()
     MPI_Send_init( life + (columns * 2) - 2, 1, column_datatype, east_rank, rank, cartesian2D, &send_requests[2] );
     MPI_Send_init( life + columns + 1, 1, column_datatype, west_rank, rank, cartesian2D, &send_requests[3] );
 
-    MPI_Send_init( life + columns * (rows - 2) + 1, 1, MPI_CHAR, southeast_rank, rank, cartesian2D, &send_requests[4] );
-    MPI_Send_init( life + columns * (rows - 1) - 2, 1, MPI_CHAR, southwest_rank, rank, cartesian2D, &send_requests[5] );
+    MPI_Send_init( life + columns * (rows - 1) - 2, 1, MPI_CHAR, southeast_rank, rank, cartesian2D, &send_requests[4] );
+    MPI_Send_init( life + columns * (rows - 2) + 1, 1, MPI_CHAR, southwest_rank, rank, cartesian2D, &send_requests[5] );
     MPI_Send_init( life + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests[6] );
     MPI_Send_init( life + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests[7] );
 
@@ -188,7 +189,7 @@ int main()
         printf("northwest %d\n", northwest_rank);
         printf("northeast %d\n", northeast_rank);
         printf("southeast %d\n", southeast_rank);
-        printf("southwest %d\n", southwest_rank);
+        printf("southwest %d\n\n", southwest_rank);
 
         MPI_Status status;
         char* process2 = (char *)malloc( rows * columns * sizeof(char));
@@ -215,7 +216,7 @@ int main()
      * The Game Of Life will run for 5 generations.
      * Modify the number of generations as desired.
      ***********************************************/
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < 1000; i++)
     {
         MPI_Start(&receive_requests[0]);
         MPI_Start(&receive_requests[1]);
@@ -345,6 +346,9 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
     }
 }
 
+/****************************************************************************************
+ * Calculates the organisms only at the borders, after receiving all the halo elements
+ ****************************************************************************************/
 void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors;
