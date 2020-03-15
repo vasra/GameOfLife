@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include "mpi.h"
 
 /**< The size of one side of the square grid */
-#define SIZE 1024
-/**< The number of dimensions of the grid */
+#define SIZE 840
 #define NDIMS 2
 //#define DEBUG
 
@@ -58,15 +58,13 @@ int main()
      * send_requests    - array holding all the requests for sending messages
      * statuses         - array holding the output of the Waitall operation
      * t1, t2           - used for MPI_Wtime
+     * root             - used to check if the number of processes is a perfect square
      ************************************************************************************/
 
     MPI_Datatype   row_datatype, column_datatype;
     MPI_Request    receive_requests[8], send_requests[8];
     MPI_Status     statuses[8];
-    double         t1, t2;
-
-    /**< initialize all dimensions to 0, because MPI_Dims_create will throw an error otherwise */
-    dim_size[0] = dim_size[1] = 0;
+    double         t1, t2, root;
 
     /**< Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1 */
     periods[0] = periods[1] = 1;
@@ -80,20 +78,24 @@ int main()
     MPI_Comm_size(MPI_COMM_WORLD, &processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if( SIZE % processes != 0 )
+    /**< If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions */
+    root = sqrt((double)processes);
+    if( (root - floor(root)) == 0 )
+        dim_size[0] = dim_size[1] = (int)root;
+    else
+        dim_size[0] = dim_size[1] = 0;
+
+    /**< Let MPI decide which is the best arrangement according to the number of processes and dimensions */
+    if( MPI_Dims_create(processes, NDIMS, dim_size) != MPI_SUCCESS )
     {
         if(rank == 0)
         {
-            printf("Number of processes and size of grid do not match. The remainder of the division \"size of grid / processes\" must be 0, e.g. "
-                   "size = 320 and processes = 8 is an example of a valid input.\n");
+            printf("Number of processes and size of grid do not match. MPI_Dims_create() returned an error. Exiting.\n");
         }
         MPI_Abort(MPI_COMM_WORLD, -1);
         MPI_Finalize();
         return -1;
     }
-
-    /**< Let MPI decide which is the best arrangement according to the number of processes and dimensions */
-    MPI_Dims_create(processes, NDIMS, dim_size);
 
     /**< Create a 2D Cartesian topology. Find the rank and coordinates of each process */
     MPI_Cart_create(MPI_COMM_WORLD, NDIMS, dim_size, periods, reorder, &cartesian2D);
@@ -180,6 +182,8 @@ int main()
 #ifdef DEBUG
     if(rank == 0)
     {
+        printf("rows are %d\n", rows);
+        printf("columns are %d\n\n", columns);
         printf("The cartesian topology is\n");
         printf("%d, %d\n", coords[0], coords[1]);
         printf("north %d\n", north_rank);
@@ -212,11 +216,8 @@ int main()
     }
 #endif
 
-    /***********************************************
-     * The Game Of Life will run for 5 generations.
-     * Modify the number of generations as desired.
-     ***********************************************/
-    for(int i = 0; i < 1000; i++)
+    /**< Modify the number of generations as desired */
+    for(int i = 0; i < 3000; i++)
     {
         MPI_Start(&receive_requests[0]);
         MPI_Start(&receive_requests[1]);
