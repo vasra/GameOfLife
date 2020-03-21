@@ -123,7 +123,7 @@ int main()
     MPI_Cart_rank(cartesian2D, west, &west_rank);
 
     northeast[0] = coords[0] - 1;
-    northeast[1] = coords[1] - 1;
+    northeast[1] = coords[1] + 1;
     MPI_Cart_rank(cartesian2D, northeast, &northeast_rank);
 
     southeast[0] = coords[0] + 1;
