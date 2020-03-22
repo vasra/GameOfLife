@@ -7,7 +7,8 @@
 /**< The size of one side of the square grid */
 #define SIZE 840
 #define NDIMS 2
-//#define DEBUG
+/* #define DEBUG_COORDINATES */
+/* #define DEBUG_GRID */
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
 void Print_grid(int rows, int columns, char *life);
@@ -89,9 +90,7 @@ int main()
     if( MPI_Dims_create(processes, NDIMS, dim_size) != MPI_SUCCESS )
     {
         if(rank == 0)
-        {
             printf("Number of processes and size of grid do not match. MPI_Dims_create() returned an error. Exiting.\n");
-        }
         MPI_Abort(MPI_COMM_WORLD, -1);
         MPI_Finalize();
         return -1;
@@ -179,8 +178,8 @@ int main()
     t1 = MPI_Wtime();
     MPI_Pcontrol(1);
 
-#ifdef DEBUG
-    if(rank == 0)
+#ifdef DEBUG_COORDINATES
+    if (rank == 0)
     {
         printf("rows are %d\n", rows);
         printf("columns are %d\n\n", columns);
@@ -194,7 +193,12 @@ int main()
         printf("northeast %d\n", northeast_rank);
         printf("southeast %d\n", southeast_rank);
         printf("southwest %d\n\n", southwest_rank);
+    }
+#endif
 
+#ifdef DEBUG_GRID
+    if (rank == 0)
+    {
         MPI_Status status;
         char* process2 = (char *)malloc( rows * columns * sizeof(char));
 
@@ -217,7 +221,7 @@ int main()
 #endif
 
     /**< Modify the number of generations as desired */
-    for(int i = 0; i < 3000; i++)
+    for(int i = 0; i < 1500; i++)
     {
         MPI_Start(&receive_requests[0]);
         MPI_Start(&receive_requests[1]);
@@ -245,7 +249,7 @@ int main()
 
         MPI_Waitall(8, send_requests, statuses);
 
-#ifdef DEBUG
+#ifdef DEBUG_GRID
         if(rank == 0)
         {
             printf("Generation %d:\n", i);
@@ -264,9 +268,7 @@ int main()
     t2 = MPI_Wtime();
 
     if(rank == 0)
-    {
         printf("Elapsed time is %f:\n", (t2 - t1) );
-    }
 
     /**< Clean up and exit */
     free(life);
