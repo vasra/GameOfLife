@@ -25,7 +25,6 @@ int main()
      *     dim_size[1]  - How many processes will be in each column
      *
      * periods                    - Array with two elements, for the periodicity of the two dimensions
-     *
      * coords                     - Array with two elements, holding the coordinates of the current process
      * north, east etc.           - The coordinates of each of our eight neighbors
      * north_rank, east_rank etc. - The ranks of the neighbors
@@ -54,7 +53,7 @@ int main()
     /************************************************************************************
      * VARIABLES FOR MPI
      * row_datatype     - custom datatype to send/receive the halo rows
-     * column_datatype  - custom dataype to send/receive the halo columns
+     * column_datatype  - custom datatype to send/receive the halo columns
      * receive_requests - array holding all the requests for receiving messages
      * send_requests    - array holding all the requests for sending messages
      * statuses         - array holding the output of the Waitall operation
@@ -81,7 +80,7 @@ int main()
 
     /**< If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions */
     root = sqrt((double)processes);
-    if( (root - floor(root)) == 0 )
+    if( root == floor(root) )
         dim_size[0] = dim_size[1] = (int)root;
     else
         dim_size[0] = dim_size[1] = 0;
@@ -360,7 +359,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
     for(int i = 1; i < columns - 1; i++)
     {
         neighbors = *(life + i - 1)               + *(life + i)  +              *(life + i + 1)               +
-                    *(life + columns + i - 1)                    +              *(life + columns + i + 1)     +
+                    *(life + columns + i - 1)     + /* you are here */          *(life + columns + i + 1)     +
                     *(life + columns * 2 + i - 1) + *(life + columns * 2 + i) + *(life + columns * 2 + i + 1);
 
         if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns + i) == 1))
@@ -373,7 +372,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
     for(int i = 2; i < rows - 2; i++)
     {
         neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
-                    *(life + columns * i)                    +                      *(life + columns * i + 2)       +
+                    *(life + columns * i)       + /* you are here */                *(life + columns * i + 2)       +
                     *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
 
         if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns * i + 1) == 1))
@@ -385,8 +384,8 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
     /**< Right column */
     for(int i = 2; i < rows - 2; i++)
     {
-        neighbors = *(life + columns * i - 3) + *(life + columns * i - 2) + *(life + columns * i - 1)             +
-                    *(life + columns * (i + 1) - 3)                 +       *(life + columns * (i + 1) - 1)       +
+        neighbors = *(life + columns * i - 3)       + *(life + columns * i - 2)       + *(life + columns * i - 1)             +
+                    *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1)       +
                     *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
 
         if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (i + 1) - 2) == 1))
@@ -399,7 +398,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
     for(int i = 1; i < columns - 1; i++)
     {
         neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1)     +
-                    *(life + columns * (rows - 2) + i - 1)                    +                   *(life + columns * (rows - 2) + i + 1)     +
+                    *(life + columns * (rows - 2) + i - 1) + /* you are here */                   *(life + columns * (rows - 2) + i + 1)     +
                     *(life + columns * (rows - 1) + i - 1) + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
 
         if(neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (rows - 2) + i) == 1))
