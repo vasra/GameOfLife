@@ -5,15 +5,15 @@
 #include "mpi.h"
 
 /**< The size of one side of the square grid */
-#define SIZE 840
+#define SIZE 16
 #define NDIMS 2
 /* #define DEBUG_COORDINATES */
-/* #define DEBUG_GRID */
+#define DEBUG_GRID
 
-void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
-void Print_grid(int rows, int columns, char *life);
-void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
-void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
+void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
+void inline Print_grid(int rows, int columns, char *life);
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int *local_sum);
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum);
 void inline Swap(char **a, char **b);
 
 int main()
@@ -53,20 +53,22 @@ int main()
 
     /************************************************************************************
      * VARIABLES FOR MPI
-     * row_datatype     - custom datatype to send/receive the halo rows
-     * column_datatype  - custom dataype to send/receive the halo columns
-     * receive_requests - array holding all the requests for receiving messages
-     * send_requests    - array holding all the requests for sending messages
-     * statuses         - array holding the output of the Waitall operation
-     * t1, t2           - used for MPI_Wtime
-     * root             - used to check if the number of processes is a perfect square
+     * row_datatype          - custom datatype to send/receive the halo rows
+     * column_datatype       - custom dataype to send/receive the halo columns
+     * receive_requests      - array holding all the requests for receiving messages
+     * send_requests         - array holding all the requests for sending messages
+     * statuses              - array holding the output of the Waitall operation
+     * t1, t2                - used for MPI_Wtime
+     * root                  - used to check if the number of processes is a perfect square
+     * local_sum, global_sum - sums used in the MPI_Allreduce operation
      ************************************************************************************/
 
     MPI_Datatype   row_datatype, column_datatype;
     MPI_Request    receive_requests[8], send_requests[8];
     MPI_Status     statuses[8];
     double         t1, t2, root;
-
+    int            local_sum = 0, global_sum = 0;
+    
     /**< Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1 */
     periods[0] = periods[1] = 1;
 
@@ -221,7 +223,7 @@ int main()
 #endif
 
     /**< Modify the number of generations as desired */
-    for(int i = 0; i < 1500; i++)
+    for(int i = 0; i < 1; i++)
     {
         MPI_Start(&receive_requests[0]);
         MPI_Start(&receive_requests[1]);
@@ -241,11 +243,11 @@ int main()
         MPI_Start(&send_requests[6]);
         MPI_Start(&send_requests[7]);
 
-        Next_generation_inner(rows, columns, life, life_copy);
+        Next_generation_inner(rows, columns, life, life_copy, &local_sum);
 
         MPI_Waitall(8, receive_requests, statuses);
 
-        Next_generation_outer(rows, columns, life, life_copy);
+        Next_generation_outer(rows, columns, life, life_copy, &local_sum);
 
         MPI_Waitall(8, send_requests, statuses);
 
@@ -253,15 +255,41 @@ int main()
         if(rank == 0)
         {
             printf("Generation %d:\n", i);
-            Print_grid(rows, columns, life);
+            MPI_Status status;
+            char* process2 = (char*)malloc(rows * columns * sizeof(char));
+            int lsum;
+            printf("The grid for process 0 is:\n");
+            Print_grid(rows, columns, life_copy);
+            printf("Local sum is %d\n", local_sum);
+
+            for (int i = 1; i < processes; i++)
+            {
+                MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
+                printf("The grid for process %d is:\n", i);
+                Print_grid(rows, columns, process2);
+                MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
+                printf("Local sum is %d\n", lsum);
+
+            }
+            free(process2);
+        }
+        else
+        {
+            MPI_Send(life_copy, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
+            MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
         }
 #endif
+
+        if (i % 10 == 0)
+            MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
+
         /************************************************************************************************
          * Swap the addresses of the two tables. That way, we avoid copying the contents
          * of life to life_copy. Each round, the addresses are exchanged, saving time from running
          * a loop to copy the contents.
          ************************************************************************************************/
         Swap(&life, &life_copy);
+        local_sum = 0;
     }
 
     MPI_Pcontrol(0);
@@ -283,7 +311,7 @@ int main()
  * Randomly produces the first generation. The living organisms
  * are represented by a 1, and the dead organisms by a 0.
  ****************************************************************/
-void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed)
+void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed)
 {
     float probability;
     srand(seed);
@@ -310,7 +338,7 @@ void Initial_state(int rows, int columns, char *first_generation, char *first_ge
 /****************************************************************
  * Prints the entire grid to the terminal. Used for debugging
  ****************************************************************/
-void Print_grid(int rows, int columns, char *life)
+void inline Print_grid(int rows, int columns, char *life)
 {
     for (int i = 0; i< rows; i++)
     {
@@ -330,7 +358,7 @@ void Print_grid(int rows, int columns, char *life)
  * are represented by a 1, and the dead organisms by a 0. This function only
  * calculates the inner organisms, while we wait to receive all the halo information
  *************************************************************************************/
-void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy)
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int* local_sum)
 {
     int neighbors;
     for(int i = 2; i < rows - 2; i++)
@@ -345,6 +373,8 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
                 *(life_copy + i * columns + j) = 1;
             else
                 *(life_copy + i * columns + j) = 0;
+
+            *local_sum += *(life_copy + i * columns + j);
         }
     }
 }
@@ -352,7 +382,7 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
 /****************************************************************************************
  * Calculates the organisms only at the borders, after receiving all the halo elements
  ****************************************************************************************/
-void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy)
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum)
 {
     int neighbors;
 
@@ -367,6 +397,8 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                 *(life_copy + columns + i) = 1;
             else
                 *(life_copy + columns + i) = 0;
+
+        *local_sum += *(life_copy + columns + i);
     }
 
     /**< Left column */
@@ -380,6 +412,8 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                 *(life_copy + columns * i + 1) = 1;
             else
                 *(life_copy + columns * i + 1) = 0;
+        
+        *local_sum += *(life_copy + columns * i + 1);
     }
 
     /**< Right column */
@@ -393,6 +427,8 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                 *(life_copy + columns * (i + 1) - 2) = 1;
             else
                 *(life_copy + columns * (i + 1) - 2) = 0;
+
+        *local_sum += *(life_copy + columns * (i + 1) - 2);
     }
 
     /**< Bottom row */
@@ -406,6 +442,8 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                 *(life_copy + columns * (rows - 2) + i) = 1;
             else
                 *(life_copy + columns * (rows - 2) + i) = 0;
+
+        *local_sum += *(life_copy + columns * (rows - 2) + i);
     }
 }
 
