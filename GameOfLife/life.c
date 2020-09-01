@@ -12,8 +12,8 @@
 
 void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
 void inline Print_grid(int rows, int columns, char *life);
-void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int *local_sum);
-void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum);
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
 void inline Swap(char **a, char **b);
 
 int main()
@@ -59,14 +59,12 @@ int main()
      * statuses                                    - array holding the output of the Waitall operation
      * t1, t2                                      - used for MPI_Wtime
      * root                                        - used to check if the number of processes is a perfect square
-     * local_sum, global_sum                       - sums used in the MPI_Allreduce operation
      ***************************************************************************************************************/
 
     MPI_Datatype   row_datatype, column_datatype;
     MPI_Request    receive_requests_even[8], send_requests_even[8], receive_requests_odd[8], send_requests_odd[8];
     MPI_Status     statuses[8];
     double         t1, t2, root;
-    int            local_sum = 0, global_sum = 0;
     
     /* Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1 */
     periods[0] = periods[1] = 1;
@@ -266,11 +264,11 @@ int main()
             MPI_Start(&send_requests_even[6]);
             MPI_Start(&send_requests_even[7]);
 
-            Next_generation_inner(rows, columns, life, life_copy, &local_sum);
+            Next_generation_inner(rows, columns, life, life_copy);
 
             MPI_Waitall(8, receive_requests_even, statuses);
 
-            Next_generation_outer(rows, columns, life, life_copy, &local_sum);
+            Next_generation_outer(rows, columns, life, life_copy);
 
             MPI_Waitall(8, send_requests_even, statuses);
         }
@@ -294,11 +292,11 @@ int main()
             MPI_Start(&send_requests_odd[6]);
             MPI_Start(&send_requests_odd[7]);
 
-            Next_generation_inner(rows, columns, life, life_copy, &local_sum);
+            Next_generation_inner(rows, columns, life, life_copy);
 
             MPI_Waitall(8, receive_requests_odd, statuses);
 
-            Next_generation_outer(rows, columns, life, life_copy, &local_sum);
+            Next_generation_outer(rows, columns, life, life_copy);
 
             MPI_Waitall(8, send_requests_odd, statuses);
         }
@@ -326,14 +324,8 @@ int main()
             free(process2);
         }
         else
-        {
             MPI_Send(life, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
-            MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
-        }
 #endif
-
-        if (i % 10 == 0)
-            MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
         /************************************************************************************************
          * Swap the addresses of the two tables. That way, we avoid copying the contents
@@ -341,7 +333,6 @@ int main()
          * a loop to copy the contents.
          ************************************************************************************************/
         Swap(&life, &life_copy);
-        local_sum = 0;
     }
 
     MPI_Pcontrol(0);
@@ -410,7 +401,7 @@ void inline Print_grid(int rows, int columns, char *life)
  * are represented by a 1, and the dead organisms by a 0. This function only
  * calculates the inner organisms, while we wait to receive all the halo information
  *************************************************************************************/
-void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int* local_sum)
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors;
     for(int i = 2; i < rows - 2; i++)
@@ -422,10 +413,7 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
                         *(life + (i + 1) * columns + (j - 1)) + *(life + (i + 1) * columns + j) + *(life + (i + 1) * columns + (j + 1));
 
             if (neighbors == 3 || (neighbors == 2 && *(life_copy + i * columns + j) == 1))
-            {
                 *(life_copy + i * columns + j) = 1;
-                *local_sum += 1;
-            }
             else
                 *(life_copy + i * columns + j) = 0;
         }
@@ -435,7 +423,7 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
 /****************************************************************************************
  * Calculates the organisms only at the borders, after receiving all the halo elements
  ****************************************************************************************/
-void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum)
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors;
 
@@ -447,10 +435,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                     *(life + columns * 2 + i - 1) + *(life + columns * 2 + i) + *(life + columns * 2 + i + 1);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns + i) == 1))
-        {
-            *local_sum += 1;
             *(life_copy + columns + i) = 1;
-        }
         else
             *(life_copy + columns + i) = 0;
     }
@@ -463,10 +448,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                     *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * i + 1) == 1))
-        {
-            *local_sum += 1;
             *(life_copy + columns * i + 1) = 1;
-        }
         else
             *(life_copy + columns * i + 1) = 0;   
     }
@@ -479,10 +461,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                     *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (i + 1) - 2) == 1))
-        {
-            *local_sum += 1;
             *(life_copy + columns * (i + 1) - 2) = 1;
-        }
         else
             *(life_copy + columns * (i + 1) - 2) = 0;
     }
@@ -495,10 +474,7 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
                     *(life + columns * (rows - 1) + i - 1) + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (rows - 2) + i) == 1))
-        {
-            *local_sum += 1;
             *(life_copy + columns * (rows - 2) + i) = 1;
-        }
         else
             *(life_copy + columns * (rows - 2) + i) = 0;
     }
