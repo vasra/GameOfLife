@@ -10,8 +10,8 @@
 #define DEBUG_COORDINATES
 #define DEBUG_GRID
 
-void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
-void inline Print_grid(int rows, int columns, char *life);
+void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
+void Print_grid(int rows, int columns, char *life);
 void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
 void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
 void inline Swap(char **a, char **b);
@@ -151,8 +151,10 @@ int main()
     seed = rank + 2;
     Initial_state(rows, columns, life, life_copy, seed);
 
+    /*******************************************************************************************************************************************/
     /* We implement persistent communication, since the neighboring processes will always remain the same through the execution of the program */
-    /* These are for the even iterations of the loop, e.g. i = 0, 2, 4, 6, 8 etc. */
+    /* These are for the even iterations of the loop, e.g. i = 0, 2, 4, 6, 8 etc.                                                              */
+    /*******************************************************************************************************************************************/
     MPI_Recv_init( life + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests_even[0] );
     MPI_Recv_init( life + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests_even[1] );
     MPI_Recv_init( life + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests_even[2] );
@@ -173,7 +175,9 @@ int main()
     MPI_Send_init( life + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests_even[6] );
     MPI_Send_init( life + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests_even[7] );
 
+    /*****************************************************************************/
     /* These are for the odd iterations of the loop, e.g. i = 1, 3, 5, 7, 9 etc. */
+    /*****************************************************************************/
     MPI_Recv_init( life_copy + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests_odd[0] );
     MPI_Recv_init( life_copy + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests_odd[1] );
     MPI_Recv_init( life_copy + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests_odd[2]) ;
@@ -244,9 +248,9 @@ int main()
 #endif
 
     /* Modify the number of generations as desired */
-    for (int i = 0; i < 5; i++)
+    for (int generation = 0; generation < 5; generation++)
     {
-        if (i % 2 == 0)
+        if (generation % 2 == 0)
         {
             MPI_Start(&receive_requests_even[0]);
             MPI_Start(&receive_requests_even[1]);
@@ -271,7 +275,39 @@ int main()
             MPI_Waitall(8, receive_requests_even, statuses);
 
             Next_generation_outer(rows, columns, life, life_copy);
+            
+#ifdef DEBUG_GRID
+            /* Print the grid of every process */
+            if (rank == 0)
+            {
+                printf("Generation %d:\n", generation);
+                MPI_Status status;
+                char* process2 = (char*)malloc(rows * columns * sizeof(char));
+                int lsum;
+                printf("The grid for process 0 is:\n");
+                Print_grid(rows, columns, life);
+                //printf("Local sum is %d\n", local_sum);
 
+                for (int i = 1; i < processes; i++)
+                {
+                    MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
+                    printf("The grid for process %d is:\n", i);
+                    Print_grid(rows, columns, process2);
+                    MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
+                    printf("Local sum is %d\n", lsum);
+
+                }
+                free(process2);
+            }
+            else
+                MPI_Send(life, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
+#endif
+            /************************************************************************************************
+            * Swap the addresses of the two tables. That way, we avoid copying the contents
+            * of life to life_copy. Each round, the addresses are exchanged, saving time from running
+            * a loop to copy the contents.
+            ************************************************************************************************/
+            Swap(&life, &life_copy);
             MPI_Waitall(8, send_requests_even, statuses);
         }
         else
@@ -300,42 +336,40 @@ int main()
 
             Next_generation_outer(rows, columns, life, life_copy);
 
+#ifdef DEBUG_GRID
+            /* Print the grid of every process */
+            if (rank == 0)
+            {
+                printf("Generation %d:\n", generation);
+                MPI_Status status;
+                char* process2 = (char*)malloc(rows * columns * sizeof(char));
+                int lsum;
+                printf("The grid for process 0 is:\n");
+                Print_grid(rows, columns, life);
+                //printf("Local sum is %d\n", local_sum);
+
+                for (int i = 1; i < processes; i++)
+                {
+                    MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
+                    printf("The grid for process %d is:\n", i);
+                    Print_grid(rows, columns, process2);
+                    MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
+                    printf("Local sum is %d\n", lsum);
+
+                }
+                free(process2);
+            }
+            else
+                MPI_Send(life, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
+#endif
+            /************************************************************************************************
+            * Swap the addresses of the two tables. That way, we avoid copying the contents
+            * of life to life_copy. Each round, the addresses are exchanged, saving time from running
+            * a loop to copy the contents.
+            ************************************************************************************************/
+            Swap(&life, &life_copy);
             MPI_Waitall(8, send_requests_odd, statuses);
         }
-
-#ifdef DEBUG_GRID
-        /* Print the grid of every process */
-        if (rank == 0)
-        {
-            printf("Generation %d:\n", i);
-            MPI_Status status;
-            char* process2 = (char*)malloc(rows * columns * sizeof(char));
-            int lsum;
-            printf("The grid for process 0 is:\n");
-            Print_grid(rows, columns, life);
-            //printf("Local sum is %d\n", local_sum);
-
-            for (int i = 1; i < processes; i++)
-            {
-                MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
-                printf("The grid for process %d is:\n", i);
-                Print_grid(rows, columns, process2);
-                MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
-                printf("Local sum is %d\n", lsum);
-
-            }
-            free(process2);
-        }
-        else
-            MPI_Send(life, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
-#endif
-
-        /************************************************************************************************
-         * Swap the addresses of the two tables. That way, we avoid copying the contents
-         * of life to life_copy. Each round, the addresses are exchanged, saving time from running
-         * a loop to copy the contents.
-         ************************************************************************************************/
-        Swap(&life, &life_copy);
     }
 
     MPI_Pcontrol(0);
