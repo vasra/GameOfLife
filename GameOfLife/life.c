@@ -35,14 +35,14 @@ int main()
 
     /*******************************************************************************************************
      * VARIABLES FOR THE CARTESIAN TOPOLOGY
-     * reorder          - Indicates if MPI can rearrange the processes more efficiently among the processors
-     * rank             - Process rank
-     * processes        - the total number of processes in the communicator
-     * rows             - The number of rows of the local 2D matrix
-     * columns          - The number of columns of the local 2D matrix
-     * seed             - The seed used to randomly create the first generation
+     * reorder                    - Indicates if MPI can rearrange the processes more efficiently among the processors
+     * rank                       - Process rank
+     * processes                  - The total number of processes in the communicator
+     * rows                       - The number of rows of the local 2D matrix
+     * columns                    - The number of columns of the local 2D matrix
+     * seed                       - The seed used to randomly create the first generation
      * north_rank, east_rank etc. - The ranks of the neighbors
-     * cartesian2D      - Our new custom Communicator
+     * cartesian2D                - Our new custom Communicator
      *******************************************************************************************************/
 
     int            reorder, rank, processes, rows, columns, seed;
@@ -52,13 +52,13 @@ int main()
 
     /***************************************************************************************************************
      * VARIABLES FOR MPI
-     * row_datatype                                - custom datatype to send/receive the halo rows
-     * column_datatype                             - custom datatype to send/receive the halo columns
-     * receive_requests_even, receive_requests_odd - arrays holding all the requests for receiving messages
-     * send_requests_even, send_requests_odd       - arrays holding all the requests for sending messages
-     * statuses                                    - array holding the output of the Waitall operation
-     * t1, t2                                      - used for MPI_Wtime
-     * root                                        - used to check if the number of processes is a perfect square
+     * row_datatype                                - Custom datatype to send/receive the halo rows
+     * column_datatype                             - Custom datatype to send/receive the halo columns
+     * receive_requests_even, receive_requests_odd - Arrays holding all the requests for receiving messages
+     * send_requests_even, send_requests_odd       - Arrays holding all the requests for sending messages
+     * statuses                                    - Array holding the output of the Waitall operation
+     * t1, t2                                      - Used by MPI_Wtime
+     * root                                        - Used to check if the number of processes is a perfect square
      ***************************************************************************************************************/
 
     MPI_Datatype   row_datatype, column_datatype;
