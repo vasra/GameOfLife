@@ -80,6 +80,7 @@ int main()
 
     /* If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions */
     root = sqrt((double)processes);
+
     if (root == floor(root))
         dim_size[0] = dim_size[1] = (int)root;
     else
@@ -453,6 +454,8 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
                 *(life_copy + i * columns + j) = 1;
             else
                 *(life_copy + i * columns + j) = 0;
+
+            *local_sum += *(life_copy + i * columns + j);
         }
     }
 }
