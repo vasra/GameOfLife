@@ -27,14 +27,11 @@ int main()
      * periods                    - Array with two elements, for the periodicity of the two dimensions
      * coords                     - Array with two elements, holding the coordinates of the current process
      * north, east etc.           - The coordinates of each of our eight neighbors
-     * north_rank, east_rank etc. - The ranks of the neighbors
      ********************************************************************************************************/
 
     int dim_size[NDIMS], periods[NDIMS], coords[NDIMS];
     int north[NDIMS], east[NDIMS], south[NDIMS], west[NDIMS],
         northeast[NDIMS], southeast[NDIMS], southwest[NDIMS], northwest[NDIMS];
-    int north_rank, east_rank, south_rank, west_rank,
-        northeast_rank, southeast_rank, southwest_rank, northwest_rank;
 
     /*******************************************************************************************************
      * VARIABLES FOR THE CARTESIAN TOPOLOGY
@@ -44,10 +41,13 @@ int main()
      * rows             - The number of rows of the local 2D matrix
      * columns          - The number of columns of the local 2D matrix
      * seed             - The seed used to randomly create the first generation
+     * north_rank, east_rank etc. - The ranks of the neighbors
      * cartesian2D      - Our new custom Communicator
      *******************************************************************************************************/
 
     int            reorder, rank, processes, rows, columns, seed;
+    int            north_rank, east_rank, south_rank, west_rank,
+                   northeast_rank, southeast_rank, southwest_rank, northwest_rank;
     MPI_Comm       cartesian2D;
 
     /***************************************************************************************************************
