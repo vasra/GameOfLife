@@ -154,7 +154,7 @@ int main()
 
     /*******************************************************************************************************************************************/
     /* We implement persistent communication, since the neighboring processes will always remain the same through the execution of the program */
-    /* These are for the even iterations of the loop, e.g. i = 0, 2, 4, 6, 8 etc.                                                              */
+    /* These are for the even iterations of the loop, e.g. generation = 0, 2, 4, 6, 8 etc.                                                     */
     /*******************************************************************************************************************************************/
     MPI_Recv_init( life + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests_even[0] );
     MPI_Recv_init( life + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests_even[1] );
@@ -176,9 +176,9 @@ int main()
     MPI_Send_init( life + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests_even[6] );
     MPI_Send_init( life + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests_even[7] );
 
-    /*****************************************************************************/
-    /* These are for the odd iterations of the loop, e.g. i = 1, 3, 5, 7, 9 etc. */
-    /*****************************************************************************/
+    /**************************************************************************************/
+    /* These are for the odd iterations of the loop, e.g. generation = 1, 3, 5, 7, 9 etc. */
+    /**************************************************************************************/
     MPI_Recv_init( life_copy + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests_odd[0] );
     MPI_Recv_init( life_copy + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests_odd[1] );
     MPI_Recv_init( life_copy + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests_odd[2]) ;
