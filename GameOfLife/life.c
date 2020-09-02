@@ -284,19 +284,14 @@ int main()
                 printf("Generation %d:\n", generation);
                 MPI_Status status;
                 char* process2 = (char*)malloc(rows * columns * sizeof(char));
-                int lsum;
                 printf("The grid for process 0 is:\n");
                 Print_grid(rows, columns, life);
-                //printf("Local sum is %d\n", local_sum);
 
                 for (int i = 1; i < processes; i++)
                 {
                     MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
                     printf("The grid for process %d is:\n", i);
                     Print_grid(rows, columns, process2);
-                    MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
-                    printf("Local sum is %d\n", lsum);
-
                 }
                 free(process2);
             }
@@ -344,18 +339,14 @@ int main()
                 printf("Generation %d:\n", generation);
                 MPI_Status status;
                 char* process2 = (char*)malloc(rows * columns * sizeof(char));
-                int lsum;
                 printf("The grid for process 0 is:\n");
                 Print_grid(rows, columns, life);
-                //printf("Local sum is %d\n", local_sum);
 
                 for (int i = 1; i < processes; i++)
                 {
                     MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
                     printf("The grid for process %d is:\n", i);
                     Print_grid(rows, columns, process2);
-                    MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
-                    printf("Local sum is %d\n", lsum);
 
                 }
                 free(process2);
@@ -454,8 +445,6 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
                 *(life_copy + i * columns + j) = 1;
             else
                 *(life_copy + i * columns + j) = 0;
-
-            *local_sum += *(life_copy + i * columns + j);
         }
     }
 }
