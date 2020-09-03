@@ -2,16 +2,17 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <omp.h>
 #include "mpi.h"
 
 /* The size of one side of the square grid */
-#define SIZE 8
+#define SIZE 12
 #define NDIMS 2
-#define DEBUG_COORDINATES
+/*#define DEBUG_COORDINATES
 #define DEBUG_GRID
-#define ALL_REDUCE
+#define ALL_REDUCE*/
 
-void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D);
+void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D, int rank);
 void Print_grid(int rows, int columns, char *life);
 void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int *local_sum);
 void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum);
@@ -153,7 +154,7 @@ int main()
 
     /* Generate the first generation according to the random seed */
     seed = rank + 2;
-    Initial_state(rows, columns, life, life_copy, seed, &local_sum, &global_sum, &cartesian2D);
+    Initial_state(rows, columns, life, life_copy, seed, &local_sum, &global_sum, &cartesian2D, rank);
 #ifdef ALL_REDUCE
     if (rank != 0)
     {
@@ -426,17 +427,19 @@ int main()
  * Randomly produces the first generation. The living organisms
  * are represented by a 1, and the dead organisms by a 0.
  ****************************************************************/
-void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D)
+void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D, int rank)
 {
     float probability;
     srand(seed);
+    int i, j;
 
-    for (int i = 0; i < rows; i++)
+#pragma omp parallel for collapse(2) private(i,j) schedule(static)
+    for (i = 0; i < rows; i++)
     {
-        for (int j = 0; j < columns; j++)
+        for (j = 0; j < columns; j++)
         {
             /* Initialize all halo values to 0. The rest will be assigned values randomly */
-            if ( i == 0 || j == 0 || i == rows - 1 || j == columns - 1)
+            if (i == 0 || j == 0 || i == rows - 1 || j == columns - 1)
             {
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
                 continue;
@@ -448,6 +451,7 @@ void inline Initial_state(int rows, int columns, char *first_generation, char *f
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
 
             *local_sum += *(first_generation + i * columns + j);
+            printf("mpirank=%2d Trank=%2d (total=%2d). My i is %d and my j is %d\n", rank, omp_get_thread_num(), omp_get_num_threads(), i, j);
         }
     }
     MPI_Allreduce(local_sum, global_sum, 1, MPI_INT, MPI_SUM, *cartesian2D);
