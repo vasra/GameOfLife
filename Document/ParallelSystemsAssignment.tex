@@ -1,0 +1,26 @@
+\documentclass[12pt]{report}
+\usepackage   {xltxtra}
+\usepackage   {fontspec}
+\usepackage   {hyperref}
+
+% Fonts
+\setmainfont{Arial}
+
+% Title
+\title {Εργασία 2019-20: Conway’s Game of Life}
+\author {Ραδιώτης Βασίλειος EN1180005}
+\date {3 Σεπτεμβρίου 2020}
+
+\renewcommand\contentsname{Περιεχόμενα}
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\chapter {Καθαρά MPI}
+\input   {chapters/MPI}
+
+\chapter {MPI + OpenMP}
+\input   {chapters/MPI_OpenMP}
+\end{document}
