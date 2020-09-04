@@ -8,9 +8,9 @@
 /* The size of one side of the square grid */
 #define SIZE 12
 #define NDIMS 2
-/*#define DEBUG_COORDINATES
+/*#define DEBUG_COORDINATES*/
 #define DEBUG_GRID
-#define ALL_REDUCE*/
+#define ALL_REDUCE
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D, int rank);
 void Print_grid(int rows, int columns, char *life);
@@ -431,9 +431,9 @@ void inline Initial_state(int rows, int columns, char *first_generation, char *f
 {
     float probability;
     srand(seed);
-    int i, j;
+    int i, j, lsum = 0;
 
-#pragma omp parallel for collapse(2) private(i,j) schedule(static)
+#pragma omp parallel for collapse(2) private(i,j) schedule(static) reduction(+:lsum)
     for (i = 0; i < rows; i++)
     {
         for (j = 0; j < columns; j++)
@@ -450,10 +450,11 @@ void inline Initial_state(int rows, int columns, char *first_generation, char *f
             else
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
 
-            *local_sum += *(first_generation + i * columns + j);
-            printf("mpirank=%2d Trank=%2d (total=%2d). My i is %d and my j is %d\n", rank, omp_get_thread_num(), omp_get_num_threads(), i, j);
+            lsum += *(first_generation + i * columns + j);
+            /* printf("mpirank=%2d Trank=%2d (total=%2d). My i is %d and my j is %d\n", rank, omp_get_thread_num(), omp_get_num_threads(), i, j); */
         }
     }
+    *local_sum = lsum;
     MPI_Allreduce(local_sum, global_sum, 1, MPI_INT, MPI_SUM, *cartesian2D);
 }
 
@@ -482,10 +483,12 @@ void inline Print_grid(int rows, int columns, char *life)
  *************************************************************************************/
 void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int* local_sum)
 {
-    int neighbors;
-    for (int i = 2; i < rows - 2; i++)
+    int neighbors, i, j, lsum = 0;
+
+ #pragma omp parallel for collapse(2) private(i,j) schedule(static) reduction(+:lsum)
+    for (i = 2; i < rows - 2; i++)
     {
-        for (int j = 2; j < columns - 2; j++)
+        for (j = 2; j < columns - 2; j++)
         {
             neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
                         *(life + i * columns + (j - 1))                          +                *(life + i * columns + (j + 1))       +
@@ -496,9 +499,10 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
             else
                 *(life_copy + i * columns + j) = 0;
 
-            *local_sum += *(life_copy + i * columns + j);
+            lsum += *(life_copy + i * columns + j);
         }
     }
+    *local_sum = lsum;
 }
 
 /****************************************************************************************
@@ -506,10 +510,11 @@ void inline Next_generation_inner(int rows, int columns, char *life, char *life_
  ****************************************************************************************/
 void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum)
 {
-    int neighbors;
+    int neighbors, i, lsum = 0;
 
     /* Upper row */
-    for (int i = 1; i < columns - 1; i++)
+#pragma omp parallel for schedule(static) reduction(+:lsum)
+    for (i = 1; i < columns - 1; i++)
     {
         neighbors = *(life + i - 1)               + *(life + i)  +              *(life + i + 1)               +
                     *(life + columns + i - 1)     + /* you are here */          *(life + columns + i + 1)     +
@@ -520,11 +525,12 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
         else
             *(life_copy + columns + i) = 0;
 
-        *local_sum += *(life_copy + columns + i);
+        lsum += *(life_copy + columns + i);
     }
 
-    /* Left column */
-    for (int i = 2; i < rows - 2; i++)
+    /* Left column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
+#pragma omp parallel for schedule(static) reduction(+:lsum)
+    for (i = 2; i < rows - 2; i++)
     {
         neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
                     *(life + columns * i)       + /* you are here */                *(life + columns * i + 2)       +
@@ -535,11 +541,12 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
         else
             *(life_copy + columns * i + 1) = 0;   
 
-        *local_sum += *(life_copy + columns * i + 1);
+        lsum += *(life_copy + columns * i + 1);
     }
 
-    /* Right column */
-    for (int i = 2; i < rows - 2; i++)
+    /* Right column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
+#pragma omp parallel for schedule(static) reduction(+:lsum)
+    for (i = 2; i < rows - 2; i++)
     {
         neighbors = *(life + columns * i - 3)       + *(life + columns * i - 2)       + *(life + columns * i - 1)             +
                     *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1)       +
@@ -550,11 +557,12 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
         else
             *(life_copy + columns * (i + 1) - 2) = 0;
 
-        *local_sum += *(life_copy + columns * (i + 1) - 2);
+        lsum += *(life_copy + columns * (i + 1) - 2);
     }
 
     /* Bottom row */
-    for (int i = 1; i < columns - 1; i++)
+#pragma omp parallel for schedule(static) reduction(+:lsum)
+    for (i = 1; i < columns - 1; i++)
     {
         neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1)     +
                     *(life + columns * (rows - 2) + i - 1) + /* you are here */                   *(life + columns * (rows - 2) + i + 1)     +
@@ -565,8 +573,10 @@ void inline Next_generation_outer(int rows, int columns, char *life, char *life_
         else
             *(life_copy + columns * (rows - 2) + i) = 0;
 
-        *local_sum += *(life_copy + columns * (rows - 2) + i);
+        lsum += *(life_copy + columns * (rows - 2) + i);
     }
+
+    *local_sum += lsum;
 }
 
 void inline Swap(char **a, char **b)
