@@ -11,8 +11,7 @@
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy);
 void Print_grid(int rows, int columns, char *life);
-__global__ void Next_generation(int rows, int columns, char *lifeCUDA, char *lifeCUDA_copy);
-void inline Swap(char **a, char **b);
+__global__ void Next_generation(int rows, int columns, char* lifeCUDA, char* lifeCUDA_copy);
 
 // The size of one side of the square grid
 constexpr int SIZE = 8;
@@ -21,21 +20,12 @@ constexpr int NDIMS = 2;
 int main()
 {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // VARIABLES FOR THE CARTESIAN TOPOLOGY
-    // rows    - The number of rows of the local 2D matrix
-    // columns - The number of columns of the local 2D matrix
-    // seed    - The seed used to randomly create the first generation
+    // rows    - The number of rows of the local 2D matrix of the block
+    // columns - The number of columns of the local 2D matrix of the block
+    // t1, t2  - Used for timing
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     int rows, columns;
-    
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // VARIABLES
-    // t1, t2            - Used for timing
-    // root              - Used to check if the number of processes is a perfect square
-    // randomProbability - Used to randomly produce the first generation
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     double t1, t2;
 
     // We add 2 to each dimension in order to include the halo rows and columns
@@ -47,34 +37,35 @@ int main()
     char* lifeCUDA;
     char* lifeCUDA_copy;
     cudaError_t err;
+    int nblocks;
 
     // Produce the first generation
     Initial_state(rows, columns, life, life_copy);
 
     err = cudaMalloc((void**)&lifeCUDA, rows * columns * sizeof(char));
     if (err != cudaSuccess) {
-        fprintf(stderr, "GPUassert: %s\n", err);
+        fprintf(stderr, "Could not allocate CUDA memory, with error code %d\n", err);
         return err;
     }
 
     err = cudaMalloc((void**)&lifeCUDA_copy, rows * columns * sizeof(char));
     if (err != cudaSuccess) {
-        fprintf(stderr, "GPUassert: %s\n", err);
+        fprintf(stderr, "Could not allocate CUDA memory, with error code %d\n", err);
         return err;
     }
 
     err = cudaMemcpy(lifeCUDA, life, sizeof(char) * rows * columns, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        fprintf(stderr, "GPUassert: %s\n", err);
+        fprintf(stderr, "Could not copy to GPU memory, with error code %d\n", err);
         return err;
     }
 
     err = cudaMemcpy(lifeCUDA_copy, life_copy, sizeof(char) * rows * columns, cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        fprintf(stderr, "GPUassert: %s\n", err);
+        fprintf(stderr, "Could not copy to GPU memory, with error code %d\n", err);
         return err;
     }
-
+    
 #ifdef DEBUG_GRID
     // Print the grid of every block, before the exchange of the halo elements and before the beginning of the main loop
     
@@ -83,17 +74,17 @@ int main()
     // Modify the number of generations as desired
     for (int generation = 0; generation < 5; generation++)
     {
-        Next_generation(rows, columns, life, life_copy);
+        Next_generation<<<nblocks, 256>>>(rows, columns, lifeCUDA, lifeCUDA_copy);
 
 #ifdef DEBUG_GRID
-        // Print the grid of every block (very few threads must be used)          
+        // Print the grid of every block          
 #endif
         /////////////////////////////////////////////////////////////////////////////////////////////////
         // Swap the addresses of the two tables. That way, we avoid copying the contents
-        // of life to life_copy. Each round, the addresses are exchanged, saving time from running
+        // of lifeCUDA to lifeCUDA_copy. Each round, the addresses are exchanged, saving time from running
         // a loop to copy the contents.
         /////////////////////////////////////////////////////////////////////////////////////////////////
-        Swap(&life, &life_copy);
+        std::swap(lifeCUDA, lifeCUDA_copy);
     }
     // Clean up and exit
     free(life);
@@ -160,9 +151,9 @@ __global__ void Next_generation(int rows, int columns, char *lifeCUDA, char *lif
 {
     int neighbors;
     
-    for (int i = 2; i < rows - 2; i++)
+    for (int i = 0; i < rows; i++)
     {
-        for (int j = 2; j < columns - 2; j++)
+        for (int j = 0; j < columns; j++)
         {
             neighbors = *(lifeCUDA + (i - 1) * columns + (j - 1)) + *(lifeCUDA + (i - 1) * columns + j) + *(lifeCUDA + (i - 1) * columns + (j + 1)) +
                         *(lifeCUDA + i * columns + (j - 1))                          +                *(lifeCUDA + i * columns + (j + 1))       +
@@ -174,11 +165,4 @@ __global__ void Next_generation(int rows, int columns, char *lifeCUDA, char *lif
                 *(lifeCUDA_copy + i * columns + j) = 0;
         }
     }
-}
-
-void inline Swap(char **a, char **b)
-{
-    char *temp = *a;
-    *a = *b;
-    *b = temp;
 }
