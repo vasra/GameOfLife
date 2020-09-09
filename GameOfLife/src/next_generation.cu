@@ -2,10 +2,12 @@
 #include <timestamp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <life.h>
 #include <utility>
 
-#define DEBUG_COORDINATES
-#define DEBUG_GRID
+#define DEBUG
 
 __global__ void nextGen(int rows, int columns, char* lifeCUDA, char* lifeCUDA_copy) {
     int neighbors = 0;
@@ -26,6 +28,7 @@ __global__ void nextGen(int rows, int columns, char* lifeCUDA, char* lifeCUDA_co
             else
                 lifeCUDA_copy[x + yAbs] = 0;
     }
+
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -65,15 +68,17 @@ extern "C" float GameOfLife(int rows, int columns, char* life, char* life_copy, 
     timestamp t_start;
     t_start = getTimestamp();
 
-    for (int i = 0; i < generations; i++) {
+    for (int gen = 0; gen < generations; gen++) {
         nextGen<<<nblocks, nthreads>>>(rows, columns, lifeCUDA, lifeCUDA_copy);
-#ifdef DEBUG_GRID
-        // Print the grid of every block, before the exchange of the halo elements and before the beginning of the main loop
 
-#endif
-
-#ifdef DEBUG_GRID
-        // Print the grid of every block          
+#ifdef DEBUG
+        cudaMemcpy(life, lifeCUDA, sizeof(char) * rows * columns, cudaMemcpyDeviceToHost);
+        cudaMemcpy(life_copy, lifeCUDA_copy, sizeof(char) * rows * columns, cudaMemcpyDeviceToHost);
+        printf("Generation %d\n", gen);
+        printf("life\n");
+        Print_grid(rows, columns, life);
+        printf("life_copy\n");
+        Print_grid(rows, columns, life_copy);
 #endif
         /////////////////////////////////////////////////////////////////////////////////////////////////
         // Swap the addresses of the two tables. That way, we avoid copying the contents

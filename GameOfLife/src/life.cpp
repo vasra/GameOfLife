@@ -4,17 +4,23 @@
 #include <math.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <life.h>
 #include <random>
 
-void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy);
-void Print_grid(int rows, int columns, char *life);
-extern "C" float GameOfLife(int rows, int columns, char* life, char* life_copy, int nblocks, int nthreads, int generations);
+#define DEBUG
 
 // The size of one side of the square grid
+#ifndef DEBUG
 constexpr int size = 2048;
 constexpr int generations = 5;
 constexpr int nblocks = 5;
 constexpr int nthreads = 256;
+#else
+constexpr int size = 8;
+constexpr int generations = 2;
+constexpr int nblocks = 1;
+constexpr int nthreads = 2;
+#endif
 
 int main() {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,15 +29,13 @@ int main() {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     int rows, columns;
-
-    // We add 2 to each dimension in order to include the halo rows and columns
-    rows = columns = size + 2;
+    rows = columns = size;
 
     // Pointers to our 2D grid, and its necessary copy
     char *life = (char*)malloc( rows * columns * sizeof(char) );
     char *life_copy = (char*)malloc( rows * columns * sizeof(char) );
 
-    // Produce the first generation
+    // Produce the first generation randomly
     Initial_state(rows, columns, life, life_copy);
     
     float msecs = GameOfLife(rows, columns, life, life_copy, nblocks, nthreads, generations);
@@ -50,7 +54,6 @@ int main() {
 // are represented by a 1, and the dead organisms by a 0.
 /////////////////////////////////////////////////////////////////
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy) {
-    // Generate the first generation according to the random seed
     float randomProbability = 0.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -58,11 +61,6 @@ void Initial_state(int rows, int columns, char *first_generation, char *first_ge
 
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < columns; j++) {
-            // Initialize all halo values to 0. The rest will be assigned values randomly
-            if ( i == 0 || j == 0 || i == rows - 1 || j == columns - 1) {
-                *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
-                continue;
-            }
             randomProbability = static_cast<float>(probability(gen));
             if (randomProbability >= 0.5f)
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 1;
