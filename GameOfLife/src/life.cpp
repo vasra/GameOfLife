@@ -32,8 +32,8 @@ int main() {
     rows = columns = size;
 
     // Pointers to our 2D grid, and its necessary copy
-    char *life = (char*)malloc( rows * columns * sizeof(char) );
-    char *life_copy = (char*)malloc( rows * columns * sizeof(char) );
+    char *h_life = (char*)malloc( rows * columns * sizeof(char) );
+    char *h_life_copy = (char*)malloc( rows * columns * sizeof(char) );
 
     // Produce the first generation randomly
     Initial_state(rows, columns, life, life_copy);
@@ -53,7 +53,7 @@ int main() {
 // Randomly produces the first generation. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 /////////////////////////////////////////////////////////////////
-void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy) {
+void Initial_state(int rows, int columns, char * h_life, char * h_life_copy) {
     float randomProbability = 0.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -63,9 +63,9 @@ void Initial_state(int rows, int columns, char *first_generation, char *first_ge
         for (int j = 0; j < columns; j++) {
             randomProbability = static_cast<float>(probability(gen));
             if (randomProbability >= 0.5f)
-                *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 1;
+                *(h_life + i * columns + j) = *(h_life_copy + i * columns + j) = 1;
             else
-                *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
+                *(h_life + i * columns + j) = *(h_life_copy + i * columns + j) = 0;
         }
     }
 }
@@ -73,10 +73,10 @@ void Initial_state(int rows, int columns, char *first_generation, char *first_ge
 /////////////////////////////////////////////////////////////////
 // Prints the entire grid to the terminal. Used for debugging
 /////////////////////////////////////////////////////////////////
-void Print_grid(int rows, int columns, char *life) {
+void Print_grid(int rows, int columns, char * h_life) {
     for (int i = 0; i< rows; i++) {
         for (int j = 0; j < columns; j++) {
-            printf("%d ", *(life + i * columns + j));
+            printf("%d ", *(h_life + i * columns + j));
             if ( j == columns - 1)
                 printf("\n");
         }
