@@ -7,27 +7,33 @@
 #include <life.h>
 #include <random>
 
-#define DEBUG
+//#define DEBUG
 
-// The size of one side of the square grid
+///////////////////////////////////////////////////////////////////////
+// size        - The size of one side of the square grid
+// generations - The number of generations for which the game will run
+// nthreads    - The number of threads per block
+// nblocks     - The number of blocks
+///////////////////////////////////////////////////////////////////////
 #ifndef DEBUG
 constexpr int size = 2048;
 constexpr int generations = 5;
-constexpr int nblocks = 5;
 constexpr int nthreads = 256;
+constexpr int nblocks = size * size / nthreads;
 #else
-constexpr int size = 8;
+constexpr int size = 5;
 constexpr int generations = 2;
 constexpr int nblocks = 1;
 constexpr int nthreads = 2;
 #endif
 
 int main() {
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // rows    - The number of rows of the local 2D matrix of the block
-    // columns - The number of columns of the local 2D matrix of the block
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+    /////////////////////////////////////////////////////////////////////////////
+    // rows    - The number of rows of the 2D matrix
+    // columns - The number of columns of the 2D matrix
+    // Having two variables be the same as the size variable may seem redundant,
+    // but it increases code readability
+    /////////////////////////////////////////////////////////////////////////////
     int rows, columns;
     rows = columns = size;
 
@@ -36,15 +42,15 @@ int main() {
     char *h_life_copy = (char*)malloc( rows * columns * sizeof(char) );
 
     // Produce the first generation randomly
-    Initial_state(rows, columns, life, life_copy);
+    Initial_state(rows, columns, h_life, h_life_copy);
     
-    float msecs = GameOfLife(rows, columns, life, life_copy, nblocks, nthreads, generations);
+    float msecs = GameOfLife(rows, columns, h_life, h_life_copy, nblocks, nthreads, generations);
 
     printf("Elapsed time is %.2f msecs\n", msecs);
 
     // Clean up and exit
-    free(life);
-    free(life_copy);
+    free(h_life);
+    free(h_life_copy);
  
     return 0;
 }

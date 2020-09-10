@@ -7,28 +7,35 @@
 #include <life.h>
 #include <utility>
 
-#define DEBUG
+//#define DEBUG
 
-__global__ void nextGen(int rows, int columns, char* d_life, char* d_life_copy) {
+__global__ void nextGen(const int rows, const int columns, char* d_life, char* d_life_copy) {
     int neighbors = 0;
-
-    for (int cellId = blockIdx.x * blockDim.x + threadIdx.x; cellId < rows * columns; cellId += blockDim.x * gridDim.x) {
-            int x = cellId % columns;
-            int yAbs = cellId - x;
-            int xLeft = (x + columns - 1) % columns;
-            int xRight = (x + 1) % columns;
-            int yAbsUp = (yAbs + rows * columns - columns) % (rows * columns);
-            int yAbsDown = (yAbs + columns) % (rows * columns);
-            neighbors = d_life[xLeft + yAbsUp]   + d_life[x + yAbsUp]   + d_life[xRight + yAbsUp] +
-                        d_life[xLeft + yAbs]               +                d_life[xRight + yAbs] +
-                        d_life[xLeft + yAbsDown] + d_life[x + yAbsDown] + d_life[xRight + yAbsDown];
-
-            if (neighbors == 3 || (neighbors == 2 && d_life_copy[x + yAbs] == 1))
-                d_life_copy[x + yAbs] = 1;
+    int first_in_row, down, up, left, right, upright, upleft, downright, downleft;
+    
+    for (int cell = blockIdx.x * blockDim.x + threadIdx.x; cell < rows * columns; cell += blockDim.x * gridDim.x) {
+            first_in_row = cell -  cell % columns;
+            down         = (cell + columns) % (rows * columns);
+            up           = (cell + rows * columns - columns) % (rows * columns);
+            left         = (cell + rows * columns - 1) % columns + first_in_row;
+            right        = (cell + rows * columns + 1) % columns + first_in_row;
+            upleft       = (left + rows * columns - columns) % (rows * columns);
+            downleft     = (left + rows * columns + columns) % (rows * columns);
+            upright      = (right + rows * columns - columns) % (rows * columns);
+            downright    = (right + rows * columns + columns) % (rows * columns);
+#ifdef DEBUG       
+            if (cell == 0 || cell ==4 || cell == 20 || cell == 24 || cell == 12)
+                printf("I am cell %d and my neighbors are up %d down %d right %d left %d upright %d upleft %d downright %d downleft %d\n", cell, up, down, right, left, upright, upleft, downright, downleft);
+#endif
+            neighbors = *(d_life + upleft)   + *(d_life + up)   + *(d_life + upright) +
+                        *(d_life + left)                +         *(d_life + right)   +
+                        *(d_life + downleft) + *(d_life + down) + *(d_life + downright);
+        
+            if (neighbors == 3 || (neighbors == 2 && *(d_life_copy + cell) == 1))
+                *(d_life_copy + cell) = 1;
             else
-                d_life_copy[x + yAbs] = 0;
+                *(d_life_copy + cell) = 0;
     }
-
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -36,7 +43,7 @@ __global__ void nextGen(int rows, int columns, char* d_life, char* d_life_copy) 
 // calculates the results, and stores them in d_life_copy. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 //////////////////////////////////////////////////////////////////////////////////////
-extern "C" float GameOfLife(int rows, int columns, char* h_life, char* h_life_copy, int nblocks, int nthreads, int generations) {
+extern "C" float GameOfLife(const int rows, const int columns, char* h_life, char* h_life_copy, int nblocks, int nthreads, int generations) {
     // The grids that will be copied to the GPU
     char* d_life;
     char* d_life_copy;
