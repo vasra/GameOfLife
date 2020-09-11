@@ -1,2 +1,71 @@
 Αρχικά, θα εξετάσουμε την περίπτωση του «καθαρού» MPI, ξεκινώντας από τον κώδικα.
 \section{Επεξήγηση κώδικα}
+
+\subsection{Macros}
+
+\begin{minted}{C}
+#define SIZE 8
+#define NDIMS 2
+#define DEBUG_COORDINATES
+#define DEBUG_GRID
+\end{minted}
+
+\begin{multicols}{2}
+Προκειμένου να τρέξει σωστά το πρόγραμμά μας, χρειαζόμαστε τα παραπάνω macros. 
+%\begin{description}
+Το macro \textbf{SIZE} αναφέρεται στο μέγεθος του πίνακα ο οποίος θα φιλοξενήσει το Game of Life. Στο μέγεθος αυτό δεν περιλαμβάνονται οι άλω σειρές και στήλες, οπότε και θα προστεθούν στην πορεία.Το macro \textbf{NDIMS} αναφέρεται στο πλήθος των διαστάσεων που θέλουμε να έχει η καρτεσιανή τοπολογία. Στην περίπτωσή μας, χρειαζόμαστε δύο διαστάσεις, οπότε και η τιμή του macro θα παραμείνει ίδια καθόλη τη διάρκεια των δοκιμών.Τα macros \textbf{DEBUG\_COORDINATES} και \textbf{DEBUG\_GRID} χρησιμοποιούνται μόνο για debugging της εφαρμογής, αφού χρησιμοποιούνται για να γράφεται σε κάθε επανάληψη το πλέγμα του παιχνιδιού. Θα χρησιμοποιηθούν μόνο για επαλήθευση της ορθότητας των αποτελεσμάτων με μικρά μεγέθη πίνακα, και στην συνέχεια θα απενεργοποιηθούν για τις τελικές μετρήσεις.
+%\end{description}
+\end{multicols}
+
+\subsection{Συναρτήσεις}
+
+\begin{minted}{C}
+void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
+void Print_grid(int rows, int columns, char *life);
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
+void inline Swap(char **a, char **b);
+\end{minted}
+
+\begin{multicols}{2}
+Η συνάρτηση \textbf{Initial\_state} καλείται μία φορά, έξω από το κύριο loop. Σκοπός της είναι η αρχικοποίηση του πλέγματος της κάθε MPI διεργασίας με τυχαίους ζωντανούς και νεκρούς οργανισμούς, οι οποίοι παράγονται με την βοήθεια της μεταβλητής \mintinline{C}{int seed}. Οι άλω σειρές και στήλες αρχικοποιούνται με την τιμή 0. Η συνάρτηση \textbf{Print\_grid} τυπώνει το πλέγμα της κάθε διεργασίας στο output αρχείο. Επειδή το I/O επιφέρει μεγάλες καθυστερήσεις στην εκτέλεση του προγράμματος, η συνάρτηση αυτή χρησιμοποιείται μόνο για debugging και επαλήθευση της ορθότητας των αποτελεσμάτων. Οι συναρτήσεις \textbf{Next\_generation\_inner} και \textbf{Next\_generation\_outer } υπολογίζουν σε κάθε επανάληψη την επόμενη γενιά. Η πρώτη υπολογίζει μόνο τα εσωτερικά στοιχεία του πλέγματος, ο υπολογισμός των οποίων δεν εξαρτάται από τις άλω σειρές και στήλες. Αντίστοιχα, η δεύτερη υπολογίζει τα εξωτερικά στοιχεία του πλέγματος μετά από την παραλαβή των άλω στοιχείων. Η συνάρτηση \textbf{Swap} καλείται στο τέλος κάθε επανάληψης και ανταλλάσει τους pointers των δύο πινάκων, ώστε να αποφεύγεται η αντιγραφή των στοιχείων. Οι τρεις τελευταίες συναρτήσεις που αναφέρθηκαν, έχουν δηλωθεί ως \mintinline{C}{inline} ώστε να αποφευχθούν τα branch instructions τα οποία επιφέρουν και καθυστερήσεις στην εκτέλεση του προγράμματος.
+\end{multicols}
+
+\subsection{Η συνάρτηση main()}
+
+Στη συνέχεια θα εξετάσουμε τη ροή της συνάρτησης main, όπου χρησιμοποιούνται και όλες οι προαναφερθείσες συναρτήσεις για την υλοποίηση του Game of Life. Αρχικά έχουμε τη δήλωση όλων των μεταβλητών που είναι απαραίτητες για την κατανομή των διεργασιών σε καρτεσιανή τοπολογία.
+
+\begin{minted}{C}
+/*********************************************************************************************
+* ARRAYS FOR THE CARTESIAN TOPOLOGY
+* dim_size - Array with two elements
+*     dim_size[0]  - How many processes will be in each row
+*     dim_size[1]  - How many processes will be in each column
+*
+* periods          - Array with two elements, for the periodicity of the two dimensions
+* coords           - Array with two elements, holding the coordinates of the current process
+* north, east etc. - The coordinates of each of our eight neighbors
+*********************************************************************************************/
+
+int dim_size[NDIMS], periods[NDIMS], coords[NDIMS];
+int north[NDIMS], east[NDIMS], south[NDIMS], west[NDIMS],
+     northeast[NDIMS], southeast[NDIMS], southwest[NDIMS], northwest[NDIMS];
+
+/*********************************************************************************************
+* VARIABLES FOR THE CARTESIAN TOPOLOGY
+* reorder                    - Indicates if MPI can rearrange the processes more efficiently among the processors
+* rank                       - Process rank
+* processes                  - The total number of processes in the communicator
+* rows                       - The number of rows of the local 2D matrix
+* columns                    - The number of columns of the local 2D matrix
+* seed                       - The seed used to randomly create the first generation
+* north_rank, east_rank etc. - The ranks of the neighbors
+* cartesian2D                - Our new custom Communicator
+*********************************************************************************************/
+
+int            reorder, rank, processes, rows, columns, seed;
+int            north_rank, east_rank, south_rank, west_rank,
+               northeast_rank, southeast_rank, southwest_rank, northwest_rank;
+MPI_Comm       cartesian2D;
+\end{minted}
+

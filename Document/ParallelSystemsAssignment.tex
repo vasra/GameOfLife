@@ -1,12 +1,16 @@
 \documentclass[a4paper,twoside,12pt]{report}
-\usepackage   {xltxtra}
-\usepackage   {fontspec}
-\usepackage   {titlesec}
-\usepackage   {microtype}
-\usepackage   {fancyhdr}
+\usepackage{xltxtra}
+\usepackage{xcolor}
+\usepackage{fontspec}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{minted}
+\usepackage{fancyhdr}
 \pagestyle    {fancy}
-\usepackage   [a4paper,width=150mm,top=25mm,bottom=25mm]{geometry}
-\usepackage   {hyperref}
+\usepackage{multicol}
+\setlength{\columnsep}{1cm}
+\usepackage[a4paper,left=25mm,top=25mm,bottom=25mm]{geometry}
+\usepackage{hyperref}
 
 \hypersetup{
     colorlinks=true,
@@ -19,10 +23,11 @@
 % Fonts
 \setmainfont{Times New Roman}
 
+\setminted[C]{style=colorful,breaklines,breakautoindent,fontsize=\footnotesize}
 % Title
 \title {Παράλληλα Υπολογιστικά Συστήματα\\Εργασία 2019-20\\Conway’s Game of Life}
 \author {Ραδιώτης Βασίλειος EN1180005}
-\date {3 Σεπτεμβρίου 2020}
+\date {\today}
 
 \renewcommand\contentsname{Περιεχόμενα}
 
