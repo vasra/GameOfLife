@@ -18,16 +18,16 @@ void inline Swap(char **a, char **b);
 
 int main()
 {
-    /********************************************************************************************************
+    /*********************************************************************************************
      * ARRAYS FOR THE CARTESIAN TOPOLOGY
      * dim_size - Array with two elements
      *     dim_size[0]  - How many processes will be in each row
      *     dim_size[1]  - How many processes will be in each column
      *
-     * periods                    - Array with two elements, for the periodicity of the two dimensions
-     * coords                     - Array with two elements, holding the coordinates of the current process
-     * north, east etc.           - The coordinates of each of our eight neighbors
-     ********************************************************************************************************/
+     * periods          - Array with two elements, for the periodicity of the two dimensions
+     * coords           - Array with two elements, holding the coordinates of the current process
+     * north, east etc. - The coordinates of each of our eight neighbors
+     *********************************************************************************************/
 
     int dim_size[NDIMS], periods[NDIMS], coords[NDIMS];
     int north[NDIMS], east[NDIMS], south[NDIMS], west[NDIMS],
