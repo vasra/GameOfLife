@@ -69,3 +69,28 @@ int            north_rank, east_rank, south_rank, west_rank,
 MPI_Comm       cartesian2D;
 \end{minted}
 
+\begin{multicols}{2}
+Στο πρώτο μέρος έχουμε τους πίνακες dim\_size, periods, coords, north, east κλπ. Όλοι οι πίνακες έχουν μέγεθος NDIMS, δηλαδή 2. Ο πίνακας \textbf{dim\_size } περιέχει ως πρώτο του στοιχείο τον αριθμό των MPI processes που θα αντιστοιχούν σε κάθε γραμμή του πλέγματος, και ως δεύτερο στοιχείο τον αριθμό των MPI processes σε κάθε στήλη του πλέγματος. Πχ, για 8 συνολικά MPI processes, το πρώτο στοιχείο πιθανόν να έχει την τιμή 4, και το δεύτερο την τιμή 2. Άρα τα processes κατανέμονται ομοιόμορφα σε μία $2*4$ διάταξη. Εάν πάλι ο αριθμός των processes είναι τέλειο τετράγωνο, πχ. 9, τότε η κατανομή γίνεται ομοιόμορφα σε μία $3*3$ διάταξη. Όπως θα δούμε παρακάτω, οι διατάξεις αυτές δεν αποφασίζονται από εμάς, αλλά αφήνουμε το MPI να αναλάβει την κατανομή, με τον τρόπο που αυτό θα θεωρήσει βέλτιστο.
+\end{multicols}
+
+\renewcommand\thesubfigure{\arabic{subfigure}}
+\begin{figure}
+\centering
+\subfloat[Διάταξη $2*4$]{
+\begin{tabular}{cc}
+process0 & process1 \\
+process2 & process3 \\
+process4 & process5 \\
+process6 & process7
+\end{tabular}
+}
+\quad\quad\quad\quad
+\subfloat[Διάταξη $3*3$]{
+\begin{tabular}{ccc}
+process0 & process1 & process2 \\
+process3 & process4 & process5 \\
+process6 & process7 & process 8
+\end{tabular}
+}
+\caption{Δύο διαφορετικές διατάξεις}
+\end{figure}

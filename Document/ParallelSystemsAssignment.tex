@@ -10,6 +10,10 @@
 \usepackage{multicol}
 \setlength{\columnsep}{1cm}
 \usepackage[a4paper,left=25mm,top=25mm,bottom=25mm]{geometry}
+\usepackage{amsmath}
+\usepackage{nicematrix}
+\usepackage{subfig}
+\usepackage{subfloat}
 \usepackage{hyperref}
 
 \hypersetup{
@@ -23,13 +27,14 @@
 % Fonts
 \setmainfont{Times New Roman}
 
-\setminted[C]{style=colorful,breaklines,breakautoindent,fontsize=\footnotesize}
+\setminted[C]{style=pastie,breaklines,breakautoindent,fontsize=\footnotesize}
+
+\renewcommand\contentsname{Περιεχόμενα}
+
 % Title
 \title {Παράλληλα Υπολογιστικά Συστήματα\\Εργασία 2019-20\\Conway’s Game of Life}
 \author {Ραδιώτης Βασίλειος EN1180005}
 \date {\today}
-
-\renewcommand\contentsname{Περιεχόμενα}
 
 \begin{document}
 
