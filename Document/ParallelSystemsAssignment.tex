@@ -1,6 +1,6 @@
 \documentclass[a4paper,twoside,12pt]{report}
 \usepackage{xltxtra}
-\usepackage{xcolor}
+\usepackage[table]{xcolor}
 \usepackage{fontspec}
 \usepackage{titlesec}
 \usepackage{microtype}
@@ -12,8 +12,8 @@
 \usepackage[a4paper,left=25mm,top=25mm,bottom=25mm]{geometry}
 \usepackage{amsmath}
 \usepackage{nicematrix}
-\usepackage{subfig}
-\usepackage{subfloat}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage{hyperref}
 
 \hypersetup{
@@ -26,10 +26,13 @@
 \urlstyle {same}
 % Fonts
 \setmainfont{Times New Roman}
-
-\setminted[C]{style=pastie,breaklines,breakautoindent,fontsize=\footnotesize}
-
+\setminted[C]{style=pastie,breaklines,breakanywhere=true,breakautoindent,fontsize=\footnotesize}
 \renewcommand\contentsname{Περιεχόμενα}
+\renewcommand{\chaptername}{ΘΕΜΑ}
+\renewcommand{\figurename}{Σχήμα}
+\renewcommand{\thefigure}{\Roman{figure}}
+\renewcommand{\thesubfigure}{\arabic{subfigure}}
+\captionsetup[subfigure]{labelformat=parens, labelsep=quad}
 
 % Title
 \title {Παράλληλα Υπολογιστικά Συστήματα\\Εργασία 2019-20\\Conway’s Game of Life}
@@ -45,6 +48,6 @@
 \chapter {MPI}
 \input     {chapters/MPI}
 
-\chapter {MPI + OpenMP}
+\chapter {MPI με OpenMP}
 \input     {chapters/MPI_OpenMP}
 \end{document}

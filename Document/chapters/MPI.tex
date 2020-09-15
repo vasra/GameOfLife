@@ -70,27 +70,133 @@ MPI_Comm       cartesian2D;
 \end{minted}
 
 \begin{multicols}{2}
-Στο πρώτο μέρος έχουμε τους πίνακες dim\_size, periods, coords, north, east κλπ. Όλοι οι πίνακες έχουν μέγεθος NDIMS, δηλαδή 2. Ο πίνακας \textbf{dim\_size } περιέχει ως πρώτο του στοιχείο τον αριθμό των MPI processes που θα αντιστοιχούν σε κάθε γραμμή του πλέγματος, και ως δεύτερο στοιχείο τον αριθμό των MPI processes σε κάθε στήλη του πλέγματος. Πχ, για 8 συνολικά MPI processes, το πρώτο στοιχείο πιθανόν να έχει την τιμή 4, και το δεύτερο την τιμή 2. Άρα τα processes κατανέμονται ομοιόμορφα σε μία $2*4$ διάταξη. Εάν πάλι ο αριθμός των processes είναι τέλειο τετράγωνο, πχ. 9, τότε η κατανομή γίνεται ομοιόμορφα σε μία $3*3$ διάταξη. Όπως θα δούμε παρακάτω, οι διατάξεις αυτές δεν αποφασίζονται από εμάς, αλλά αφήνουμε το MPI να αναλάβει την κατανομή, με τον τρόπο που αυτό θα θεωρήσει βέλτιστο.
+Αρχικά, έχουμε τους πίνακες dim\_size, periods, coords, north, east κλπ. Όλοι οι πίνακες έχουν μέγεθος NDIMS, δηλαδή $2$. Ο πίνακας \textbf{dim\_size } περιέχει ως πρώτο του στοιχείο τον αριθμό των MPI processes που θα αντιστοιχούν σε κάθε γραμμή του πλέγματος, και ως δεύτερο στοιχείο τον αριθμό των MPI processes σε κάθε στήλη του πλέγματος. Πχ, για $8$ συνολικά MPI processes, το πρώτο στοιχείο πιθανόν να έχει την τιμή $4$, και το δεύτερο την τιμή $2$. Άρα τα processes κατανέμονται ομοιόμορφα σε μία $2*4$ διάταξη. Εάν πάλι ο αριθμός των processes είναι τέλειο τετράγωνο, πχ. $9$, τότε η κατανομή γίνεται ομοιόμορφα σε μία $3*3$ διάταξη (Σχήμα \ref{cartesian}). Όπως θα δούμε παρακάτω, οι διατάξεις αυτές δεν αποφασίζονται από εμάς, αλλά αφήνουμε το MPI να αναλάβει την κατανομή, με τον τρόπο που αυτό θα θεωρήσει βέλτιστο.
 \end{multicols}
 
-\renewcommand\thesubfigure{\arabic{subfigure}}
-\begin{figure}
+\begin{figure}[h]
 \centering
-\subfloat[Διάταξη $2*4$]{
+\begin{minipage}{0.45\textwidth}
+\centering
 \begin{tabular}{cc}
-process0 & process1 \\
-process2 & process3 \\
-process4 & process5 \\
-process6 & process7
+    process0 & process1 \\
+    process2 & process3 \\
+    process4 & process5 \\
+    process6 & process7
 \end{tabular}
-}
-\quad\quad\quad\quad
-\subfloat[Διάταξη $3*3$]{
+\subcaption{Διάταξη $2*4$}
+\end{minipage}\hfill
+\begin{minipage}{0.45\textwidth}
+\centering
 \begin{tabular}{ccc}
-process0 & process1 & process2 \\
-process3 & process4 & process5 \\
-process6 & process7 & process 8
+    process0 & process1 & process2 \\
+    process3 & process4 & process5 \\
+    process6 & process7 & process8
 \end{tabular}
-}
+\subcaption{Διάταξη $3*3$}
+\end{minipage}
 \caption{Δύο διαφορετικές διατάξεις}
+\label{cartesian}
 \end{figure}
+
+\begin{multicols}{2}
+Ο πίνακας \textbf{periods} χρησιμοποιείται από το MPI για να ελέγξει την περιοδικότητα των δύο διαστάσεων. Και οι δύο του θέσεις θα λάβουν την τιμή $1$, η οποία και δεν θα αλλάξει καθόλη τη διάρκεια της εκτέλεσης. Η τιμή $1$ και στις δύο θέσεις, δηλώνει πως έχουμε περιοδικότητα και στις δύο διαστάσεις, επομένως και το board του Game of Life θα είναι τόρος. Ο πίνακας \textbf{coords} περιέχει τις συντεταγμένες του εκάστοτε MPI process, με την τιμή στην πρώτη θέση να δίνει τη συντεταγμένη $x$, και την τιμή στη δεύτερη θέση να δίνει την συντεταγμένη $y$. Τέλος, οι πίνακες \textbf{north, east, south} κλπ, περιέχουν ο καθένας στις δύο του θέσεις τις συντεταγμές του αντίστοιχου γειτονικού MPI process, πχ ο πίνακας north περιέχεις τις συντεταγμένες της βόρειας διεργασίας. \par
+Στη συνέχεια, έχουμε τις μεταβλητές που θα χρησιμοποιηθούν από το MPI για τη δημιουργία και λειτουργία της καρτεσιανής τοπολογίας. Η μεταβλητή \textbf{reorder} θα λάβει την τιμή $1$ και θα υποδείξει στο MPI πως είναι ελεύθερο να κατανείμει τις διεργασίες στους διαθέσιμους επεξεργαστές, όπως αυτό κρίνει βέλτιστο. Η μεταβλητή \textbf{rank} είναι ο βαθμός της τρέχουσας διεργασίας, και η μεταβλητή \textbf{processes} δηλώνει πόσες συνολικά διεργασίες θα χρησιμοποιήσει το πρόγραμμά μας. Οι μεταβλητές \textbf{rows και columns} δηλώνουν πόσες γραμμές και στήλες θα έχει το τοπικό πλέγμα της κάθε διεργασίας αντίστοιχα, και η μεταβλητή \textbf{seed} είναι ένας random seed που θα χρησιμοποιηθεί ως παράμετρος της συνάρτησης \mintinline{C}{Initial_state}, μόνο για την τυχαία παραγωγή της πρώτης γενιάς. \par
+Οι μεταβλητές \textbf{north\_rank, east\_rank} κλπ, μας δείχνουν τους βαθμούς των γειτονικών διεργασιών. Τέλος, η μεταβλητή \textbf{cartesian2D} θα είναι ο καινούριος custom communicator που θα αποθηκεύσει τη νέα τοπολογία.
+\end{multicols}
+
+\clearpage
+
+\begin{minted}{C}
+/***********************************************************************************
+* VARIABLES FOR MPI
+* row_datatype                                - Custom datatype to send/receive the halo rows
+* column_datatype                             - Custom datatype to send/receive the halo columns
+* receive_requests_even, receive_requests_odd - Arrays holding all the requests for receiving messages
+* send_requests_even, send_requests_odd       - Arrays holding all the requests for sending messages
+* statuses                                    - Array holding the output of the Waitall operation
+* t1, t2                                      - Used by MPI_Wtime
+* root                                        - Used to check if the number of processes is a perfect square
+************************************************************************************/
+
+MPI_Datatype   row_datatype, column_datatype;
+MPI_Request    receive_requests_even[8], send_requests_even[8], 
+                         receive_requests_odd[8], send_requests_odd[8];
+MPI_Status     statuses[8];
+double         t1, t2, root;
+\end{minted}
+
+\begin{multicols}{2}
+Στη συνέχεια εξετάζουμε τις μεταβλητές που θα χρησιμοποιηθούν από το MPI κατά τη διάρκεια του παιχνιδιού. Θα εφαρμοστεί persistent communication, αφού οι γειτονικές διεργασίες παραμένουν σταθερές καθόλη τη διάρκεια του παιχνιδιού. Επομένως, η καλύτερη μέθοδος είναι να ορίσουμε οσο το δυνατόν περισσότερες μεταβλητές μόνο μία φορά, και έξω από την κεντρική επανάληψη. \par
+Αρχικά, οι μεταβλητές \textbf{row\_datatype και column\_datatype} ορίζουν custom MPI datatypes για την αποδοτική αποστολή και λήψη άλω γραμμών και στηλών αντίστοιχα. Οι πίνακες \textbf{receive\_requests\_even, send\_requests\_even, receive\_requests\_odd και send\_requests\_odd} έχουν όλοι μέγεθος $8$, και περιέχουν τα 8 custom receive και send requests της κάθε διεργασίας. Χρειαζόμαστε $8$ θέσεις σε κάθε πίνακα, επειδή τόσες είναι οι αποστολές και οι λήψεις διαφορετικών στοιχείων (βόρεια και νότια σειρά, ανατολική και δυτική στήλη, καθώς και $4$ γωνιακά στοιχεία). Επίσης, έχουμε δύο διαφορετικούς πίνακες για κάθε λειτουργία, με το επίθεμα odd και even. Τα requests που περιέχονται στον καθένα από αυτούς τους πίνακες, θα χρησιμοποιούνται ανάλογα με το αν το παιχνίδι βρίσκεται σε περιττή ή άρτια επανάληψη. Τον λόγο που αυτό είναι απαραίτητο, θα τον εξετάσουμε αργότερα. \par
+Ο πίνακας \textbf{statuses} χρησιμοποιείται για να αποθηκεύονται τα αποτελέσματα που επιστρέφουν σε κάθε επανάληψη οι λειτουργίες \mintinline{C}{MPI_Waitall} για την αποστολή και λήψη των άλω στοιχείων. Οι μεταβλητές \textbf{t1 και t2} χρησιμοποιούνται για την χρονομέτρηση του προγράμματος, ενώ η \textbf{root} για να συμπεράνουμε εάν το πλήθος των διεργασιών είναι τέλειο τετράγωνο. Ο λόγος που χρειάζεται να εξετάσουμε αν το πλήθος των διεργασιών είναι τέλειο τετράγωνο, είναι ότι το MPI σε αυτή την περίπτωση δεν κατανέμει αυτοματα τις διεργασίες σε διάταξη $\sqrt{processes} * \sqrt{processes}$, οπότε πρέπει να το επιβάλλουμε εμείς ως χρήστες.
+\end{multicols}
+
+\clearpage
+Όπως αναφέραμε και παραπάνω, οι periods και reorder θα έχουν την τιμή $1$. Μετά από αυτό, κάνουμε το initialization του MPI.
+\begin{minted}{C}
+/* Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1 */
+periods[0] = periods[1] = 1;
+
+/* We will allow MPI to efficiently reorder the processes among the different processors */
+reorder = 1;
+
+/* Initialize MPI */
+MPI_Init(NULL, NULL);
+MPI_Pcontrol(0);
+MPI_Comm_size(MPI_COMM_WORLD, &processes);
+MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+\end{minted}
+
+Ύστερα, εξετάζουμε εάν το πλήθος των processes είναι τέλειο τετράγωνο. Εάν ναι, τότε οι διεργασίες κατανέμονται σε μία $\sqrt{processes} * \sqrt{processes}$ διάταξη όπως αναφέρθηκε παραπάνω, αλλιώς δεν υπάρχουν περιορισμοί και αφήνουμε το MPI να αποφασίσει τον καλύτερο τρόπο κατανομής.
+
+\begin{minted}{C}
+/* If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions */
+root = sqrt((double)processes);
+
+if (root == floor(root))
+    dim_size[0] = dim_size[1] = (int)root;
+else
+    dim_size[0] = dim_size[1] = 0;
+
+/* Let MPI decide which is the best arrangement according to the number of processes and dimensions */
+if ( MPI_Dims_create(processes, NDIMS, dim_size) != MPI_SUCCESS )
+{
+    if (rank == 0)
+            printf("Number of processes and size of grid do not match. \
+                MPI_Dims_create() returned an error. Exiting.\n");
+    MPI_Abort(MPI_COMM_WORLD, -1);
+    MPI_Finalize();
+    return -1;
+}
+\end{minted}
+
+Στη συνέχεια δημιουργούμε την καρτεσιανή τοπολογία και την αποθηκεύουμε στον custom communicator \mintinline{C}{cartesian2D}. Επίσης, αποθηκεύονται στον πίνακα \mintinline{C}{coords} οι συντεταγμένες της διεργασίας.
+
+\begin{minted}{C}
+/* Create a 2D Cartesian topology. Find the rank and coordinates of each process */
+MPI_Cart_create(MPI_COMM_WORLD, NDIMS, dim_size, periods, reorder, &cartesian2D);
+MPI_Cart_coords(cartesian2D, rank, NDIMS, coords);
+\end{minted}
+
+Αυξάνουμε κατά $2$ το μέγεθος των σειρών και των στηλών, ώστε να φιλοξενήσουν τα άλω στοιχεία.
+\begin{minted}{C}
+/* We add 2 to each dimension in order to include the halo rows and columns */
+rows = (SIZE / dim_size[0]) + 2;
+columns = (SIZE /dim_size[1]) + 2;
+\end{minted}
+
+Στη συνέχεια υπολογίζουμε τον βαθμό και τις συντεταγμένες της κάθε γειτονικής διεργασίας.
+
+\begin{minted}[escapeinside=~~]{C}
+north[0] = coords[0] - 1;
+north[1] = coords[1];
+MPI_Cart_rank(cartesian2D, north, &north_rank);
+
+east[0] = coords[0];
+east[1] = coords[1] + 1;
+MPI_Cart_rank(cartesian2D, east, &east_rank);
+~\vdots~
+northwest[0] = coords[0] - 1;
+northwest[1] = coords[1] - 1;
+MPI_Cart_rank(cartesian2D, northwest, &northwest_rank);
+\end{minted}
