@@ -7,7 +7,7 @@
 \usepackage{minted}
 \usepackage{fancyhdr}
 \pagestyle    {fancy}
-%\fancyhead[LE,RO]{\nouppercase{\section}}
+\fancyhead[LE,RO]{\nouppercase{\rightmark}}
 \usepackage{multicol}
 \setlength{\columnsep}{1cm}
 \usepackage[a4paper,left=25mm,top=25mm,bottom=25mm]{geometry}
@@ -16,6 +16,7 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{tcolorbox}
+\usepackage{tikz}
 \usepackage{hyperref}
 
 \hypersetup{
@@ -28,7 +29,7 @@
 \urlstyle {same}
 % Fonts
 \setmainfont{Times New Roman}
-\setminted[C]{style=pastie,breaklines,breakautoindent,fontsize=\footnotesize}
+\setminted[C]{style=pastie,breaklines,breakautoindent,breaksymbolleft={},fontsize=\footnotesize}
 \renewcommand\contentsname{Περιεχόμενα}
 \renewcommand{\chaptername}{ΘΕΜΑ}
 \renewcommand{\figurename}{Σχήμα}
