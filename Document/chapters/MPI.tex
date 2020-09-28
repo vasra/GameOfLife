@@ -14,9 +14,7 @@
 
 \begin{multicols}{2}
 Προκειμένου να τρέξει σωστά το πρόγραμμά μας, χρειαζόμαστε τα παραπάνω macros. 
-%\begin{description}
 Το macro \textbf{SIZE} αναφέρεται στο μέγεθος του πίνακα ο οποίος θα φιλοξενήσει το Game of Life. Στο μέγεθος αυτό δεν περιλαμβάνονται οι άλω σειρές και στήλες, οπότε και θα προστεθούν στην πορεία.Το macro \textbf{NDIMS} αναφέρεται στο πλήθος των διαστάσεων που θέλουμε να έχει η καρτεσιανή τοπολογία. Στην περίπτωσή μας, χρειαζόμαστε δύο διαστάσεις, οπότε και η τιμή του macro θα παραμείνει ίδια καθόλη τη διάρκεια των δοκιμών.Τα macros \textbf{DEBUG\_COORDINATES} και \textbf{DEBUG\_GRID} χρησιμοποιούνται μόνο για debugging της εφαρμογής, αφού χρησιμοποιούνται για να τυπώνεται σε κάθε επανάληψη το πλέγμα του παιχνιδιού. Θα χρησιμοποιηθούν μόνο για επαλήθευση της ορθότητας των αποτελεσμάτων με μικρά μεγέθη πίνακα, και στην συνέχεια θα απενεργοποιηθούν για τις τελικές μετρήσεις.
-%\end{description}
 \end{multicols}
 
 \subsection{Συναρτήσεις}
@@ -256,7 +254,15 @@ MPI_Recv_init( life_copy + 1, 1, row_datatype, north_rank, north_rank, cartesian
 \end{minted}
 \end{tcolorbox}
 
-Τέλος, προτού ξεκινήσει το παιχνίδι, συγχρονίζουμε όλες τις διεργασίες με την εντολή\\ \mintinline{C}{MPI_Barrier}, και ξεκινούμε την χρονομέτρηση με την εντολή \mintinline{C}{MPI_Pcontrol}.
+Τέλος, προτού ξεκινήσει το παιχνίδι, συγχρονίζουμε όλες τις διεργασίες και ξεκινούμε την χρονομέτρηση με τις παρακάτω εντολές.
+
+\begin{tcolorbox}
+\begin{minted}{C}
+MPI_Barrier(cartesian2D);
+t1 = MPI_Wtime();
+MPI_Pcontrol(1);
+\end{minted}
+\end{tcolorbox}
 
 \begin{tcolorbox}[fonttitle=\bfseries\large,title=Σημείωση]
 Σε αυτό το σημείο, με την εντολή \mintinline{C}{#ifdef DEBUG_COORDINATES}, και εφόσον είναι ενεργοποιημένο το macro, θα τυπωθούν οι συντεταγμένες της διεργασίας $0$, οι βαθμοί των γειτόνων της, καθώς και το πόσες σειρές και στήλες έχει το πλέγμα της διεργασίας. Αντίστοιχα, με την εντολή \mintinline{C}{#ifdef DEBUG_GRID}, η κάθε διεργασία θα στείλει το πλέγμα της στην διεργασία $0$, το οποίο στη συνέχεια θα τυπωθεί. Οι άλω σειρές και στήλες θα έχουν την τιμή $0$ για όλες τις διεργασίες, εφόσον δεν έχει πραγματοποιηθεί ακόμα καμία ανταλλαγή άλω στοιχείων. Για λόγους αναγνωσιμότητας, δεν θα παρατεθούν εδώ τα τμήματα του κώδικα που εκτελούν τις συγκεκριμένες λειτουργίες. \par
@@ -304,7 +310,7 @@ return 0;
 \section{Δοκιμή προγράμματος και επαλήθευση}
 
 \begin{multicols}{2}
-Θα τρέξουμε δοκιμαστικά το πρόγραμμά μας με μικρό μέγεθος πίνακα και διεργασιών. Θα επιλέξουμε ως μέγεθος πίνακα το $16$, και $4$ διεργασίες συνολικά. Εφόσον το πλήθος των διεργασιών είναι τέλειο τετράγωνο, αναμένουμε το MPI να τις ταξινομήσει σε μία $\sqrt{processes}*\sqrt{processes}=\sqrt{4}*\sqrt{4}=2*2$ διάταξη (Σχ. \ref{fig:4processes}). \par
+Θα τρέξουμε δοκιμαστικά το πρόγραμμά μας με μικρό μέγεθος πίνακα και διεργασιών. Θα επιλέξουμε ως μέγεθος πίνακα τα $16, 21$ και $32$. Αντίστοιχα, θα χρησιμοποιήσουμε $4, 9$ και $8$ διεργασίες συνολικά. Ο λόγος που επιλέγουμε αυτές τις τιμές, είναι ότι θέλουμε να δοκιμάσουμε δύο διαφορετικά τέλεια τετράγωνα και ένα μη-τέλειο τετράγωνο για το πλήθος των διεργασιών. Εφόσον το πλήθος των διεργασιών είναι τέλειο τετράγωνο στις πρώτες δύο περιπτώσεις, αναμένουμε το MPI να τις ταξινομήσει σε μία $\sqrt{processes} * \sqrt{processes}$, άρα $\sqrt{4} * \sqrt{4} = 2 * 2$ και $\sqrt{9} * \sqrt{9} = 3 * 3$ διάταξη αντίστοιχα, όπως φαίνεται στο Σχήμα \ref{fig:4processes}). Για $8$ διεργασίες, αφήνουμε το MPI να αναλάβει την διάταξη, η οποία λογικά θα είναι της μορφής $2*4$ ή $4*2$. \par
 Αναμένουμε επίσης, το μέγεθος του πλέγματος της κάθε διεργασίας να συμμορφώνεται με τις αντίστοιχες εντολές στον κώδικα, δηλαδή τις:
 \begin{minted}{C}
 rows = (SIZE / dim_size[0]) + 2;
@@ -316,21 +322,72 @@ columns = (SIZE /dim_size[1]) + 2;
 
 \begin{figure}[h]
 \centering
-\begin{tikzpicture}
-   \fill [fill=green!20!white] (0,0) -- (4,0) -- (4,4) -- (0,4) -- cycle;
-   \fill [fill=red!30!white]     (0,4) -- (0,8) -- (4,8) -- (4,4) -- cycle;
-   \fill [fill=blue!20!white]    (4,8) -- (8,8) -- (8,4) -- (4,4) -- cycle;
-   \fill [fill=orange!80!white] (8,4) -- (8,0) -- (4,0) -- (4,4) -- cycle;
-   \draw[step=.5cm,gray,very thin] (0,0) grid (8,8);
-   \draw[ultra thick] (0,4) -- (8,4);
-   \draw[ultra thick] (4,8) -- (4,0);
-   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,6) {process 0};
-   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,6) {process 1};
-   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,2) {process 2};
-   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,2) {process 3};
-\end{tikzpicture}
-\caption{Ένα πλέγμα $16*16$, κατανεμημένο σε $4$ διεργασίες, με $64 (8*8)$ στοιχεία η καθεμία. Δεν περιλαμβάνονται οι άλω στο συγκεκριμένο σχήμα.}
-\label{fig:4processes}
+\begin{subfigure}[b]{0.5\textwidth}
+	\begin{tikzpicture}
+	   \fill [fill=green!20!white] (0,0) -- (4,0) -- (4,4) -- (0,4) -- cycle;
+	   \fill [fill=red!30!white]     (0,4) -- (0,8) -- (4,8) -- (4,4) -- cycle;
+	   \fill [fill=blue!20!white]    (4,8) -- (8,8) -- (8,4) -- (4,4) -- cycle;
+	   \fill [fill=orange!80!white] (8,4) -- (8,0) -- (4,0) -- (4,4) -- cycle;
+	   \draw[step=.5cm,gray,very thin] (0,0) grid (8,8);
+	   \draw[ultra thick] (0,4) -- (8,4);
+	   \draw[ultra thick] (4,8) -- (4,0);
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,6) {process 0};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,6) {process 1};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,2) {process 2};
+	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,2) {process 3};
+	\end{tikzpicture}
+	\caption{Ένα πλέγμα $16*16$, κατανεμημένο σε $4$ διεργασίες, με $64 (8*8)$ στοιχεία η καθεμία.}
+	\label{fig:4processes}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.3\textwidth}
+	\begin{tikzpicture}
+	   \fill [fill=green!20!white]    (0,0) -- (2.1,0) -- (2.1,2.1) -- (0,2.1) -- cycle;
+	   \fill [fill=red!30!white]        (0,2.1) -- (0,4.2) -- (2.1,4.2) -- (2.1,2.1) -- cycle;
+	   \fill [fill=blue!20!white]      (0,4.2) -- (0,6.3) -- (2.1,6.3) -- (2.1,4.2) -- cycle;
+	   \fill [fill=orange!80!white] (2.1,0) -- (2.1,2.1) -- (4.2,2.1) -- (4.2,0) -- cycle;
+	   \fill [fill=yellow!80!white]  (2.1,2.1) -- (2.1,4.2) -- (4.2,4.2) -- (4.2,2.1) -- cycle;
+	   \fill [fill=pink!70!white]       (2.1,4.2) -- (2.1,6.3) -- (4.2,6.3) -- (4.2,4.2) -- cycle;
+	   \fill [fill=blue!70!white]       (4.2,4.2) -- (4.2,6.3) -- (6.3,6.3) -- (6.3,4.2) -- cycle;
+	   \fill [fill=green!70!white]    (4.2,2.1) -- (4.2,4.2) -- (6.3,4.2) -- (6.3,2.1) -- cycle;
+	   \draw[step=.3cm,gray,very thin] (0,0) grid (6.3,6.3);
+	   \draw[ultra thick] (0,2.1) -- (6.3,2.1);
+	   \draw[ultra thick] (0,4.2) -- (6.3,4.2);
+	   \draw[ultra thick] (2.1,0) -- (2.1,6.3);
+	   \draw[ultra thick] (4.2,0) -- (4.2,6.3);
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,1) {process 7};
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,3) {process 4};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,5.2) {process 1};
+	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,1) {process 8};
+	   \node [fill=yellow!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,3.1) {process 5};
+	   \node [fill=pink!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,5.2) {process 2};
+	   \node [fill=white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,1) {process 9};
+	   \node [fill=green!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,3.1) {process 6};
+	   \node [fill=blue!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,5.2) {process 3};
+	\end{tikzpicture}
+	\caption{Ένα πλέγμα $21*21$, κατανεμημένο σε $9$ διεργασίες, με $49 (7*7)$ στοιχεία η καθεμία.}
+	\label{fig:9processes}
+\end{subfigure}
+
+\begin{subfigure}[b]{0.3\textwidth}
+	\begin{tikzpicture}
+	   \fill [fill=green!20!white] (0,0) -- (3.2,0) -- (3.2,3.2) -- (0,3.2) -- cycle;
+	   \fill [fill=red!30!white]     (0,3.2) -- (0,6.4) -- (3.2,6.4) -- (3.2,3.2) -- cycle;
+	   \fill [fill=blue!20!white]    (3.2,6.4) -- (6.4,6.4) -- (6.4,3.2) -- (3.2,3.2) -- cycle;
+	   \fill [fill=orange!80!white] (6.4,3.2) -- (6.4,0) -- (3.2,0) -- (3.2,3.2) -- cycle;
+	   \draw[step=.4cm,gray,very thin] (0,0) grid (6.4,6.4);
+	   \draw[ultra thick] (0,3.2) -- (6.4,3.2);
+	   \draw[ultra thick] (3.2,6.4) -- (3.2,0);
+%	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,6) {process 0};
+%	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,6) {process 1};
+%	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,2) {process 2};
+%	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,2) {process 3};
+	\end{tikzpicture}
+	\caption{Ένα πλέγμα $16*16$, κατανεμημένο σε $4$ διεργασίες, με $64 (8*8)$ στοιχεία η καθεμία.}
+\end{subfigure}
+
+	\caption{Διάφορες πιθανές καρτεσιανές τοπολογίες. Δεν περιλαμβάνονται οι άλω της κάθε διεργασίας στα σχήματα.}
+	\label{fig:cartesian}
 \end{figure}
 
 \clearpage
@@ -473,16 +530,46 @@ The grid for process 3 is: \\
 
 \section{Μετρήσεις στην Αργώ}
 
-Ακολουθούν οι πίνακες των χρόνων, επιτάχυνσης και αποδοτικότητας από τις μετρήσεις στην Αργώ.
+Ακολουθούν οι πίνακες των χρόνων, επιτάχυνσης και αποδοτικότητας από τις μετρήσεις στην Αργώ. Στον πίνακα των χρόνων, με την τιμή «Ε» συμπληρώνονται τα κελιά για τα οποία δεν έχουν νόημα οι μετρήσεις, εφόσον εντοπίστηκε επιβράδυνση.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{|l| c | c | c | c | c | c | c | c |}
+\begin{tabular}{|l| c | c | c | c | c | c | c | c | c |}
 \hline
-\diagbox{Μέγεθος}{Διεργασίες} & 1 & 2 & 4 & 8 & 16 & 32 & 64 & 80\\
+\diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
 \hline
-840 & 20.18 & 10.13 & 5.14 & 1.37 & 1.07 & 0.78 & 1.05 & Ε\\
+840 \\
 1680 \\
 \hline
 \end{tabular}
+\caption{Χρόνοι για καθαρά MPI}
+\label{tab:timesMPI}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l| c | c | c | c | c | c | c | c | c |}
+\hline
+\diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
+\hline
+840 \\
+1680 \\
+\hline
+\end{tabular}
+\caption{Επιτάχυνση ($S = Ts / Tp$) για καθαρά MPI}
+\label{tab:speedupMPI}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l| c | c | c | c | c | c | c | c | c |}
+\hline
+\diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
+\hline
+840 \\
+1680 \\
+\hline
+\end{tabular}
+\caption{Αποδοτικότητα ($E = S / p$) για καθαρά MPI}
+\label{tab:efficiencyMPI}
 \end{table}
