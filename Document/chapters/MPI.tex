@@ -310,37 +310,38 @@ return 0;
 \section{Δοκιμή προγράμματος και επαλήθευση}
 
 \begin{multicols}{2}
-Θα τρέξουμε δοκιμαστικά το πρόγραμμά μας με μικρό μέγεθος πίνακα και διεργασιών. Θα επιλέξουμε ως μέγεθος πίνακα τα $16, 21$ και $32$. Αντίστοιχα, θα χρησιμοποιήσουμε $4, 9$ και $8$ διεργασίες συνολικά. Ο λόγος που επιλέγουμε αυτές τις τιμές, είναι ότι θέλουμε να δοκιμάσουμε δύο διαφορετικά τέλεια τετράγωνα και ένα μη-τέλειο τετράγωνο για το πλήθος των διεργασιών. Εφόσον το πλήθος των διεργασιών είναι τέλειο τετράγωνο στις πρώτες δύο περιπτώσεις, αναμένουμε το MPI να τις ταξινομήσει σε μία $\sqrt{processes} * \sqrt{processes}$, άρα $\sqrt{4} * \sqrt{4} = 2 * 2$ και $\sqrt{9} * \sqrt{9} = 3 * 3$ διάταξη αντίστοιχα, όπως φαίνεται στο Σχήμα \ref{fig:4processes}). Για $8$ διεργασίες, αφήνουμε το MPI να αναλάβει την διάταξη, η οποία λογικά θα είναι της μορφής $2*4$ ή $4*2$. \par
+Θα τρέξουμε δοκιμαστικά το πρόγραμμά μας με μικρό μέγεθος πίνακα και διεργασιών. Θα επιλέξουμε ως μέγεθος πίνακα τα $16, 21$ και $32$. Αντίστοιχα, θα χρησιμοποιήσουμε $4, 9$ και $8$ διεργασίες συνολικά. Ο λόγος που επιλέγουμε αυτές τις τιμές, είναι ότι θέλουμε να δοκιμάσουμε δύο διαφορετικά τέλεια τετράγωνα και ένα μη-τέλειο τετράγωνο για το πλήθος των διεργασιών. Εφόσον το πλήθος των διεργασιών είναι τέλειο τετράγωνο στις πρώτες δύο περιπτώσεις, αναμένουμε το MPI να τις ταξινομήσει σε μία $\sqrt{processes} * \sqrt{processes}$, άρα $\sqrt{4} * \sqrt{4} = 2 * 2$ και $\sqrt{9} * \sqrt{9} = 3 * 3$ διάταξη αντίστοιχα, όπως φαίνεται στο Σχήμα \ref{fig:cartesian}. Για $8$ διεργασίες, αφήνουμε το MPI να αναλάβει την διάταξη, η οποία λογικά θα είναι της μορφής $2*4$ ή $4*2$, όπως στο Σχήμα \ref{fig:8processes}. \par
 Αναμένουμε επίσης, το μέγεθος του πλέγματος της κάθε διεργασίας να συμμορφώνεται με τις αντίστοιχες εντολές στον κώδικα, δηλαδή τις:
 \begin{minted}{C}
 rows = (SIZE / dim_size[0]) + 2;
 columns = (SIZE /dim_size[1]) + 2;
 \end{minted}
 
-Επομένως, πρέπει η κάθε διεργασία να έχει αρχικά $16/2=8$ σειρές και στήλες \emph{στο καθολικό πλέγμα}. Το προσωπικό πλέγμα της κάθε διεργασίας πρέπει να έχει $8+2=10$ σειρές και στήλες για να φιλοξενήσει και τα άλω στοιχεία. Άρα συνοπτικά θέλουμε η διάταξη να είναι όπως παρακάτω:
+Επομένως, για μέγεθος πίνακα $16$, πρέπει η κάθε διεργασία να έχει αρχικά $16/2=8$ σειρές και στήλες \emph{στο καθολικό πλέγμα}. Το προσωπικό πλέγμα της κάθε διεργασίας πρέπει να έχει $8+2=10$ σειρές και στήλες για να φιλοξενήσει και τα άλω στοιχεία. Για μέγεθος πίνακα $21$, το προσωπικό πλέγμα κάθε διεργασίας πρέπει να έχει $7+2=9$ σειρές και στήλες. Τέλος, γι αμέγεθος πίνακα $32$ με $8$ διεργασίες, η κάθε διεργασία πρέπει να έχει $16+2=18$ σειρές και $8+2=10$ στήλες, ή το αντίστροφο. Άρα συνοπτικά θέλουμε οι διατάξεις να είναι όπως παρακάτω:
 \end{multicols}
 
 \begin{figure}[h]
 \centering
-\begin{subfigure}[b]{0.5\textwidth}
+\minipage{0.45\textwidth}
+\centering
 	\begin{tikzpicture}
-	   \fill [fill=green!20!white] (0,0) -- (4,0) -- (4,4) -- (0,4) -- cycle;
-	   \fill [fill=red!30!white]     (0,4) -- (0,8) -- (4,8) -- (4,4) -- cycle;
-	   \fill [fill=blue!20!white]    (4,8) -- (8,8) -- (8,4) -- (4,4) -- cycle;
-	   \fill [fill=orange!80!white] (8,4) -- (8,0) -- (4,0) -- (4,4) -- cycle;
-	   \draw[step=.5cm,gray,very thin] (0,0) grid (8,8);
-	   \draw[ultra thick] (0,4) -- (8,4);
-	   \draw[ultra thick] (4,8) -- (4,0);
-	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,6) {process 0};
-	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,6) {process 1};
-	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,2) {process 2};
-	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,2) {process 3};
+	   \fill [fill=green!20!white] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;
+	   \fill [fill=red!30!white]     (0,2) -- (0,4) -- (2,4) -- (2,2) -- cycle;
+	   \fill [fill=blue!20!white]    (2,4) -- (4,4) -- (4,2) -- (2,2) -- cycle;
+	   \fill [fill=orange!40!white] (4,2) -- (4,0) -- (2,0) -- (2,2) -- cycle;
+	   \draw[step=.25cm,gray,very thin] (0,0) grid (4,4);
+	   \draw[ultra thick] (0,2) -- (4,2);
+	   \draw[ultra thick] (2,4) -- (2,0);
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.9cm] at (1,3) {p0};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.9cm] at (3,3) {p1};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.9cm] at (1,1) {p2};
+	   \node [fill=orange!40!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.9cm] at (3,1) {p3};
 	\end{tikzpicture}
-	\caption{Ένα πλέγμα $16*16$, κατανεμημένο σε $4$ διεργασίες, με $64 (8*8)$ στοιχεία η καθεμία.}
+	\subcaption{Ένα πλέγμα $16*16$, κατανεμημένο σε $4$ διεργασίες, με $64 (8*8)$ στοιχεία η καθεμία.}
 	\label{fig:4processes}
-\end{subfigure}
-
-\begin{subfigure}[b]{0.3\textwidth}
+\endminipage\hfill
+\minipage{0.45\textwidth}
+\centering
 	\begin{tikzpicture}
 	   \fill [fill=green!20!white]    (0,0) -- (2.1,0) -- (2.1,2.1) -- (0,2.1) -- cycle;
 	   \fill [fill=red!30!white]        (0,2.1) -- (0,4.2) -- (2.1,4.2) -- (2.1,2.1) -- cycle;
@@ -355,39 +356,83 @@ columns = (SIZE /dim_size[1]) + 2;
 	   \draw[ultra thick] (0,4.2) -- (6.3,4.2);
 	   \draw[ultra thick] (2.1,0) -- (2.1,6.3);
 	   \draw[ultra thick] (4.2,0) -- (4.2,6.3);
-	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,1) {process 7};
-	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,3) {process 4};
-	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,5.2) {process 1};
-	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,1) {process 8};
-	   \node [fill=yellow!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,3.1) {process 5};
-	   \node [fill=pink!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,5.2) {process 2};
-	   \node [fill=white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,1) {process 9};
-	   \node [fill=green!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,3.1) {process 6};
-	   \node [fill=blue!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,5.2) {process 3};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,1) {p7};
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,3) {p4};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (1,5.2) {p1};
+	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,1) {p8};
+	   \node [fill=yellow!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,3.1) {p5};
+	   \node [fill=pink!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (3.1,5.2) {p2};
+	   \node [fill=white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,1) {p9};
+	   \node [fill=green!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,3.1) {p6};
+	   \node [fill=blue!70!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1cm,minimum height=0.4cm] at (5.2,5.2) {p3};
 	\end{tikzpicture}
-	\caption{Ένα πλέγμα $21*21$, κατανεμημένο σε $9$ διεργασίες, με $49 (7*7)$ στοιχεία η καθεμία.}
+	\subcaption{Ένα πλέγμα $21*21$, κατανεμημένο σε $9$ διεργασίες, με $49 (7*7)$ στοιχεία η καθεμία.}
 	\label{fig:9processes}
-\end{subfigure}
-
-\begin{subfigure}[b]{0.3\textwidth}
-	\begin{tikzpicture}
-	   \fill [fill=green!20!white] (0,0) -- (3.2,0) -- (3.2,3.2) -- (0,3.2) -- cycle;
-	   \fill [fill=red!30!white]     (0,3.2) -- (0,6.4) -- (3.2,6.4) -- (3.2,3.2) -- cycle;
-	   \fill [fill=blue!20!white]    (3.2,6.4) -- (6.4,6.4) -- (6.4,3.2) -- (3.2,3.2) -- cycle;
-	   \fill [fill=orange!80!white] (6.4,3.2) -- (6.4,0) -- (3.2,0) -- (3.2,3.2) -- cycle;
-	   \draw[step=.4cm,gray,very thin] (0,0) grid (6.4,6.4);
-	   \draw[ultra thick] (0,3.2) -- (6.4,3.2);
-	   \draw[ultra thick] (3.2,6.4) -- (3.2,0);
-%	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,6) {process 0};
-%	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,6) {process 1};
-%	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (2,2) {process 2};
-%	   \node [fill=orange!80!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=1.95cm,minimum height=0.9cm] at (6,2) {process 3};
-	\end{tikzpicture}
-	\caption{Ένα πλέγμα $16*16$, κατανεμημένο σε $4$ διεργασίες, με $64 (8*8)$ στοιχεία η καθεμία.}
-\end{subfigure}
+\endminipage
 
 	\caption{Διάφορες πιθανές καρτεσιανές τοπολογίες. Δεν περιλαμβάνονται οι άλω της κάθε διεργασίας στα σχήματα.}
 	\label{fig:cartesian}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\minipage{.4\textwidth}
+\centering
+	\begin{tikzpicture}
+	   \fill [fill=green!20!white] (0,0) -- (2,0) -- (2,4) -- (0,4) -- cycle;
+	   \fill [fill=red!30!white]     (0,4) -- (0,8) -- (2,8) -- (2,4) -- cycle;
+	   \fill [fill=blue!20!white]    (2,8) -- (4,8) -- (4,4) -- (2,4) -- cycle;
+	   \fill [fill=orange!40!white] (4,4) -- (4,0) -- (2,0) -- (2,4) -- cycle;
+	   \fill [fill=green!20!white] (4,0) -- (4,4) -- (6,4) -- (6,0) -- cycle;
+	   \fill [fill=red!30!white]     (4,4) -- (4,8) -- (6,8) -- (6,4) -- cycle;
+	   \fill [fill=blue!20!white]    (6,0) -- (6,4) -- (8,4) -- (8,0) -- cycle;
+	   \fill [fill=orange!40!white] (6,4) -- (6,8) -- (8,8) -- (8,4) -- cycle;
+	   \draw[step=.25cm,gray,very thin] (0,0) grid (8,8);
+	   \draw[ultra thick] (0,4) -- (8,4);
+	   \draw[ultra thick] (2,0) -- (2,8);
+	   \draw[ultra thick] (6,0) -- (6,8);
+	   \draw[ultra thick] (4,8) -- (4,0);
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (1,6) {p0};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (3,6) {p1};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (1,2) {p4};
+	   \node [fill=orange!40!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (3,2) {p5};
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (5,6) {p2};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (7,2) {p7};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (5,2) {p6};
+	   \node [fill=orange!40!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (7,6) {p3};
+	\end{tikzpicture}
+	\subcaption{$4*2$}
+	\label{fig:4processes}
+\endminipage\\
+\minipage{.4\textwidth}
+\centering
+	\begin{tikzpicture}
+	   \fill [fill=green!20!white] (0,0) -- (4,0) -- (4,2) -- (0,2) -- cycle;
+	   \fill [fill=red!30!white]     (4,0) -- (8,0) -- (8,2) -- (4,2) -- cycle;
+	   \fill [fill=blue!20!white]    (0,2) -- (4,2) -- (4,4) -- (0,4) -- cycle;
+	   \fill [fill=orange!40!white] (4,2) -- (8,2) -- (8,4) -- (4,4) -- cycle;
+	   \fill [fill=green!20!white] (0,4) -- (4,4) -- (4,6) -- (0,6) -- cycle;
+	   \fill [fill=red!30!white]     (4,4) -- (8,4) -- (8,6) -- (4,6) -- cycle;
+	   \fill [fill=blue!20!white]    (0,6) -- (4,6) -- (4,8) -- (0,8) -- cycle;
+	   \fill [fill=orange!40!white] (4,6) -- (8,6) -- (8,8) -- (4,8) -- cycle;
+	   \draw[step=.25cm,gray,very thin] (0,0) grid (8,8);
+	   \draw[ultra thick] (0,2) -- (8,2);
+	   \draw[ultra thick] (0,4) -- (8,4);
+	   \draw[ultra thick] (0,6) -- (8,6);
+	   \draw[ultra thick] (4,0) -- (4,8);
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (6,1) {p7};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (2,3) {p4};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (2,1) {p6};
+	   \node [fill=orange!40!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (6,3) {p5};
+	   \node [fill=red!30!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (6,5) {p3};
+	   \node [fill=blue!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (2,7) {p0};
+	   \node [fill=green!20!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (2,5) {p2};
+	   \node [fill=orange!40!white,draw opacity=1,fill opacity=1,text opacity=1,minimum width=.9cm,minimum height=.9cm] at (6,7) {p1};
+	\end{tikzpicture}
+	\subcaption{$2*4$}
+\endminipage
+	\caption{Ένα πλέγμα $32*32$, κατανεμημένο με δύο διαφορετικούς τρόπους σε $8$ διεργασίες, με $128 (16*8)$ στοιχεία η καθεμία.}
+	\label{fig:8processes}
 \end{figure}
 
 \clearpage
