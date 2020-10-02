@@ -399,7 +399,7 @@ int main()
             * a loop to copy the contents.
             ************************************************************************************************/
             Swap(&life, &life_copy);
-            if (generation >= 10 && generation % 10 == 0)
+            if (generation % 10 == 0)
                 MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
             local_sum = 0;
