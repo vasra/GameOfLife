@@ -1,2 +1,16 @@
 \section{Επεξήγηση κώδικα}
-Ο κώδικας παραμένει, στο μεγαλύτερο μέρος του, ίδιος με αυτόν που περιγράφηκε στο προηγούμενο κεφάλαιο. Έχουν γίνει μόνο κάποιες προσθήκες ώστε να χρησιμοποιούνται OpenMP threads στους υπολογισμούς. Συγκεκριμένα, έχουν γίνει οι παρακάτω προσθήκες. \par
+\begin{multicols}{2}
+Ο κώδικας παραμένει, στο μεγαλύτερο μέρος του, ίδιος με αυτόν που περιγράφηκε στο προηγούμενο κεφάλαιο. Έχουν γίνει μόνο κάποιες προσθήκες ώστε να χρησιμοποιούνται OpenMP threads στους υπολογισμούς. Συγκεκριμένα, στις συναρτήσεις \mintinline{C}{Initial_state} και \mintinline{C}{Next_generation_inner} έχει προστεθεί η εξής εντολή πριν το διπλό \mintinline{C}{for}: \\
+\end{multicols}
+
+\mintinline{C}{#pragma}\mintinline{C}{ omp parallel for collapse(2) private(i,j) schedule(static) reduction(+:lsum)} \\
+
+\begin{multicols}{2}
+Η εντολή αυτή κάνει collapse  το διπλό \mintinline{C}{for} ώστε να κατανεμηθούν οι υπολογισμοί σε πολλά νήματα, κι επίσης κάνει reduce το τοπικό άθροισμα στη μεταβλητή \mintinline{C}{lsum}, η τιμή της οποίας στο τέλος περνά στην \mintinline{C}{local_sum}. \par
+
+Στην συνάρτηση \mintinline{C}{Next_generation_outer}, έχουν προστεθεί τέσσερις νέες εντολές, μία πριν από κάθε \mintinline{C}{for} που υπολογίζει άλω σειρά ή στήλη. \\
+\end{multicols}
+
+\mintinline{C}{#pragma}\mintinline{C}{ omp parallel for schedule(static) reduction(+:lsum)} \\
+
+Μαζί με την παραλληλοποίηση σε νήματα, το κάθε \mintinline{C}{for} συνεισφέρει στο άθροισμα \mintinline{C}{lsum}, το οποίο στο τέλος προστίθεται στο \mintinline{C}{local_sum}.
