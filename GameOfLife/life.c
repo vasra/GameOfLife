@@ -6,10 +6,10 @@
 #include "mpi.h"
 
 /* The size of one side of the square grid */
-#define SIZE 12
+#define SIZE 840
 #define NDIMS 2
-//#define BLOCKS
-/*#define DEBUG_COORDINATES*/
+#define BLOCKS
+#define DEBUG_COORDINATES
 #define DEBUG_GRID
 #define ALL_REDUCE
 
@@ -267,6 +267,7 @@ int main()
 #endif
 
 #ifdef DEBUG_GRID
+#ifdef BLOCKS
     /* Print the grid of every process, before the exchange of the halo elements and before the beginning of the main loop*/
     if (rank == 0)
     {
@@ -286,9 +287,23 @@ int main()
         free(process2);
     }
     else
-    {
         MPI_Send(life, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
+#else
+    if (rank == 0)
+    {
+        MPI_Status status;
+        int rows_temp;
+        for (int i = 1; i < processes; i++)
+        {
+            MPI_Recv(&rows_temp, 1, MPI_INT, i, i, cartesian2D, &status);
+            printf("Process %d has %d rows\n", i, rows_temp);
+        }
     }
+    else
+    {
+        MPI_Send(&rows, 1, MPI_INT, 0, rank, cartesian2D);
+    }
+#endif
 #endif
 
     /* Modify the number of generations as desired */
@@ -321,6 +336,7 @@ int main()
             Next_generation_outer(rows, columns, life, life_copy, &local_sum);
 
 #ifdef DEBUG_GRID
+#ifdef BLOCKS
             /* Print the grid of every process */
             if (rank == 0)
             {
@@ -348,6 +364,7 @@ int main()
                 MPI_Send(life_copy, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
                 MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
             }
+#endif
 #endif
             /************************************************************************************************
             * Swap the addresses of the two tables. That way, we avoid copying the contents
@@ -388,6 +405,7 @@ int main()
             Next_generation_outer(rows, columns, life, life_copy, &local_sum);
 
 #ifdef DEBUG_GRID
+#ifdef BLOCKS
             /* Print the grid of every process */
             if (rank == 0)
             {
@@ -415,6 +433,7 @@ int main()
                 MPI_Send(life_copy, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
                 MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
             }
+#endif
 #endif
             /************************************************************************************************
             * Swap the addresses of the two tables. That way, we avoid copying the contents
