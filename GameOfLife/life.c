@@ -8,8 +8,8 @@
 #define SIZE 840
 #define NDIMS 2
 //#define BLOCKS
-#define DEBUG_COORDINATES
-#define DEBUG_GRID
+//#define DEBUG_COORDINATES
+//#define DEBUG_GRID
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed);
 void Print_grid(int rows, int columns, char *life);
@@ -118,9 +118,9 @@ int main()
     {
         /* ...otherwise, the last process will get a few more rows */
         if (rank != processes - 1)
-            rows = SIZE / processes + 1;
+            rows = SIZE / processes;
         else
-            rows = SIZE - (SIZE / processes + 1) * (processes - 1);
+            rows = SIZE - (SIZE / processes) * (processes - 1);
     }
     rows += 2;
     columns = SIZE + 2;
