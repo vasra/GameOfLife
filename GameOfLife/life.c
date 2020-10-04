@@ -8,6 +8,7 @@
 /* The size of one side of the square grid */
 #define SIZE 12
 #define NDIMS 2
+//#define BLOCKS
 /*#define DEBUG_COORDINATES*/
 #define DEBUG_GRID
 #define ALL_REDUCE
@@ -82,6 +83,7 @@ int main()
     MPI_Comm_size(MPI_COMM_WORLD, &processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+#ifdef BLOCKS
     /* If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions */
     root = sqrt((double)processes);
 
@@ -89,6 +91,10 @@ int main()
         dim_size[0] = dim_size[1] = (int)root;
     else
         dim_size[0] = dim_size[1] = 0;
+#else
+    dim_size[0] = processes;
+    dim_size[1] = 1;
+#endif
 
     /* Let MPI decide which is the best arrangement according to the number of processes and dimensions */
     if ( MPI_Dims_create(processes, NDIMS, dim_size) != MPI_SUCCESS )
@@ -104,9 +110,25 @@ int main()
     MPI_Cart_create(MPI_COMM_WORLD, NDIMS, dim_size, periods, reorder, &cartesian2D);
     MPI_Cart_coords(cartesian2D, rank, NDIMS, coords);
 
+#ifdef BLOCKS
     /* We add 2 to each dimension in order to include the halo rows and columns */
     rows = (SIZE / dim_size[0]) + 2;
     columns = (SIZE /dim_size[1]) + 2;
+#else
+    /* If the size of the grid divides evely by the number of processes, then every process gets the same amount of rows... */
+    if (SIZE % processes == 0)
+        rows = SIZE / processes;
+    else
+    {
+        /* ...otherwise, the last process will get a few more rows */
+        if (rank != processes - 1)
+            rows = SIZE / processes;
+        else
+            rows = SIZE - (SIZE / processes) * (processes - 1);
+    }
+    rows += 2;
+    columns = SIZE + 2;
+#endif
 
     /* Calculate the coordinates and ranks of all neighbors */
     north[0] = coords[0] - 1;
