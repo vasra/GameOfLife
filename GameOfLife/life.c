@@ -5,11 +5,11 @@
 #include "mpi.h"
 
 /* The size of one side of the square grid */
-#define SIZE 8
+#define SIZE 840
 #define NDIMS 2
-#define DEBUG_COORDINATES
-#define DEBUG_GRID
-#define ALL_REDUCE
+//#define DEBUG_COORDINATES
+//#define DEBUG_GRID
+//#define ALL_REDUCE
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D);
 void Print_grid(int rows, int columns, char *life);
@@ -269,7 +269,7 @@ int main()
 #endif
 
     /* Modify the number of generations as desired */
-    for (int generation = 0; generation < 5; generation++)
+    for (int generation = 0; generation < 2000; generation++)
     {
         if (generation % 2 == 0)
         {
@@ -332,7 +332,7 @@ int main()
             * a loop to copy the contents.
             ************************************************************************************************/
             Swap(&life, &life_copy);
-            if (generation >= 10 && generation % 10 == 0)
+            if (generation % 10 == 0)
                 MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
             local_sum = 0;
