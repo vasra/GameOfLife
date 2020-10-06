@@ -24,3 +24,73 @@ local_sum = 0;
 \begin{multicols}{2}
 Ακολουθούν οι πίνακες των χρόνων, επιτάχυνσης και αποδοτικότητας από τις μετρήσεις στην Αργώ. Στον πίνακα των χρόνων, με την τιμή «Ε» συμπληρώνονται τα κελιά για τα οποία δεν έχουν νόημα οι μετρήσεις, εφόσον εντοπίστηκε επιβράδυνση. Ο κύριος στόχος εδώ είναι να δούμε πώς επηρεάζει τις επιδόσεις το Allreduce κάθε δέκα επαναλήψεις -- και ο υπολογισμός του τοπικού αθροίσματος κάθε επανάληψη -- δεδομένου πως όλες οι υπόλοιπες συνθήκες είναι ίδιες με τα καθαρά MPI.
 \end{multicols}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{| l | c | c | c | c | c | c | c | c | c |}
+\hline
+\diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
+\hline
+840 & 11.62 & 2.95 & 3.96 & Ε & Ε & Ε & Ε & Ε & Ε \\
+\hline
+1680 & 46.41 & 11.65 & 7.87 & 6.61 & 6.56 & 6.28 & Ε & Ε & Ε \\
+\hline
+3360 & 186.23 & 46.49 & \\
+\hline
+6720 & 743.16 &  \\
+\hline
+13440 & 2969.87 & \\
+\hline
+26880 &  \\
+\hline
+\end{tabular}
+\caption{Χρόνοι για καθαρά MPI}
+\label{tab:timesMPIrows}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{| l | c | c | c | c | c | c | c | c | c |}
+\hline
+\diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
+\hline
+840 & 1 & \\
+\hline
+1680 & 1 & \\
+\hline
+3360 & 1 & \\
+\hline
+6720 & 1 & \\
+\hline
+13440 & \\
+\hline
+26880 & \\
+\hline
+\end{tabular}
+\caption{Επιτάχυνση ($S = Ts / Tp$) για καθαρά MPI}
+\label{tab:speedupMPIrows}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{| l | c | c | c | c | c | c | c | c | c |}
+\hline
+\diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
+\hline
+840 & 1 & \\
+\hline
+1680 & 1 & \\
+\hline
+3360 & 1 & 1 & \\
+\hline
+6720 & 1 & \\
+\hline
+13440 & 1 & \\
+\hline
+26880 & \\
+\hline
+\end{tabular}
+\caption{Αποδοτικότητα ($E = S / p$) για καθαρά MPI}
+\label{tab:efficiencyMPIrows}
+\end{table}
