@@ -36,17 +36,17 @@ local_sum = 0;
 \hline
 1680 & 46.41 & 11.65 & 7.87 & 6.61 & 6.56 & 6.28 & Ε & Ε & Ε \\
 \hline
-3360 & 186.23 & 46.49 & \\
+3360 & 186.23 & 46.49 & 21.04 & 11.95 & 7.89 & 5.59 & 4.24 & 3.41 & 18.36 \\
 \hline
-6720 & 743.16 &  \\
+6720 & 743.67 & 187.54 & 89.80 & 50.66 & 43.85 & 21.26 & 27.18 & Ε & Ε \\
 \hline
 13440 & 2969.87 & \\
 \hline
 26880 &  \\
 \hline
 \end{tabular}
-\caption{Χρόνοι για καθαρά MPI}
-\label{tab:timesMPIrows}
+\caption{Χρόνοι για καθαρά MPI με Allreduce}
+\label{tab:timesMPIAllreduce}
 \end{table}
 
 \begin{table}[H]
@@ -55,21 +55,21 @@ local_sum = 0;
 \hline
 \diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
 \hline
-840 & 1 & \\
+840 & 1 & 3.93 & 2.93 & Ε & Ε & Ε & Ε & Ε & Ε \\
 \hline
-1680 & 1 & \\
+1680 & 1 & 3.98 & 5.89 & 7.02 & 7.07 & 7.39 & Ε & Ε & Ε \\
 \hline
-3360 & 1 & \\
+3360 & 1 & 4 & 8.85 & 15.58 & 23.6 & 33.31 & 43.92 & 54.61 & 10.14 \\
 \hline
-6720 & 1 & \\
+6720 & 1 & 3.96 & 8.28 & 14.67 & 16.95 & 34.97 & 27.36 & Ε & Ε \\
 \hline
 13440 & \\
 \hline
 26880 & \\
 \hline
 \end{tabular}
-\caption{Επιτάχυνση ($S = Ts / Tp$) για καθαρά MPI}
-\label{tab:speedupMPIrows}
+\caption{Επιτάχυνση ($S = Ts / Tp$) για καθαρά MPI με Allreduce}
+\label{tab:speedupMPIAllreduce}
 \end{table}
 
 \begin{table}[H]
@@ -78,19 +78,19 @@ local_sum = 0;
 \hline
 \diagbox{Μέγεθος}{Διεργασίες} & 1 & 4 & 9 & 16 & 25 & 36 & 49 & 64 & 80\\
 \hline
-840 & 1 & \\
+840 & 1 & 0.98 & 0.32 & Ε & Ε & Ε & Ε & Ε & Ε \\
 \hline
-1680 & 1 & \\
+1680 & 1 & 0.99 & 0.65 & 0.43 & 0.28 & 0.2 & Ε & Ε & Ε \\
 \hline
-3360 & 1 & 1 & \\
+3360 & 1 & 1 & 0.98 & 0.97 & 0.94 & 0.92 & 0.89 & 0.85 & 0.12 \\
 \hline
-6720 & 1 & \\
+6720 & 1 & 0.99 & 0.92 & 0.91 & 0.67 & 0.97 & 0.55 & Ε & Ε \\
 \hline
 13440 & 1 & \\
 \hline
 26880 & \\
 \hline
 \end{tabular}
-\caption{Αποδοτικότητα ($E = S / p$) για καθαρά MPI}
-\label{tab:efficiencyMPIrows}
+\caption{Αποδοτικότητα ($E = S / p$) για καθαρά MPI με Allreduce}
+\label{tab:efficiencyMPIAllreduce}
 \end{table}
