@@ -17,7 +17,7 @@
 ///////////////////////////////////////////////////////////////////////
 #ifndef DEBUG
 constexpr int size = 840;
-constexpr int generations = 5;
+constexpr int generations = 2000;
 constexpr int nthreads = 64;
 constexpr int dimGr = size * size / nthreads;
 const     int blockSide = static_cast<int>(size / sqrt(dimGr));
