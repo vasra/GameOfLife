@@ -43,7 +43,7 @@ __global__ void nextGen(const int rows, const int columns, char* d_life, char* d
 // calculates the results, and stores them in d_life_copy. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 //////////////////////////////////////////////////////////////////////////////////////
-extern "C" float GameOfLife(const int rows, const int columns, char* h_life, char* h_life_copy, int nblocks, int nthreads, int generations) {
+extern "C" float GameOfLife(const int rows, const int columns, char* h_life, char* h_life_copy, dim3 dimGr, dim3 dimBl, int generations) {
     // The grids that will be copied to the GPU
     char* d_life;
     char* d_life_copy;
@@ -77,7 +77,7 @@ extern "C" float GameOfLife(const int rows, const int columns, char* h_life, cha
     t_start = getTimestamp();
 
     for (int gen = 0; gen < generations; gen++) {
-        nextGen<<<nblocks, nthreads>>>(rows, columns, d_life, d_life_copy);
+        nextGen<<<dimGr, dimBl>>>(rows, columns, d_life, d_life_copy);
 
 #ifdef DEBUG
         cudaMemcpy(h_life, d_life, sizeof(char) * rows * columns, cudaMemcpyDeviceToHost);

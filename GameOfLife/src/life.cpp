@@ -13,18 +13,22 @@
 // size        - The size of one side of the square grid
 // generations - The number of generations for which the game will run
 // nthreads    - The number of threads per block
-// nblocks     - The number of blocks
+// dimGr     - The number of blocks
 ///////////////////////////////////////////////////////////////////////
 #ifndef DEBUG
-constexpr int size = 2048;
+constexpr int size = 840;
 constexpr int generations = 5;
-constexpr int nthreads = 256;
-constexpr int nblocks = size * size / nthreads;
+constexpr int nthreads = 64;
+constexpr int dimGr = size * size / nthreads;
+const     int blockSide = static_cast<int>(size / sqrt(dimGr));
+dim3 dimBl(blockSide, blockSide);
 #else
-constexpr int size = 5;
+constexpr int size = 8;
 constexpr int generations = 2;
-constexpr int nblocks = 1;
-constexpr int nthreads = 2;
+constexpr int nthreads = 4;
+constexpr int dimGr = size * size / nthreads;
+const     int blockSide = static_cast<int>(size / sqrt(dimGr));
+dim3 dimBl(blockSide, blockSide);
 #endif
 
 int main() {
@@ -44,7 +48,7 @@ int main() {
     // Produce the first generation randomly
     Initial_state(rows, columns, h_life, h_life_copy);
     
-    float msecs = GameOfLife(rows, columns, h_life, h_life_copy, nblocks, nthreads, generations);
+    float msecs = GameOfLife(rows, columns, h_life, h_life_copy, dimGr, dimBl, generations);
 
     printf("Elapsed time is %.2f msecs\n", msecs);
 
