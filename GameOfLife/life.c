@@ -13,10 +13,10 @@
 //#define DEBUG_GRID
 //#define ALL_REDUCE
 
-void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D, int rank);
+void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, MPI_Comm *cartesian2D, int rank);
 void Print_grid(int rows, int columns, char *life);
-void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int *local_sum);
-void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum);
+int inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
+int inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
 void inline Swap(char **a, char **b);
 
 int main()
@@ -176,7 +176,8 @@ int main()
 
     /* Generate the first generation according to the random seed */
     seed = rank + 2;
-    Initial_state(rows, columns, life, life_copy, seed, &local_sum, &global_sum, &cartesian2D, rank);
+    Initial_state(rows, columns, life, life_copy, seed, &cartesian2D, rank);
+
 #ifdef ALL_REDUCE
     if (rank != 0)
     {
@@ -194,7 +195,7 @@ int main()
         printf("Global sum is %d\n", global_sum);
     }
 #endif
-    local_sum = 0;
+
     /*******************************************************************************************************************************************/
     /* We implement persistent communication, since the neighboring processes will always remain the same through the execution of the program */
     /* These are for the even iterations of the loop, e.g. generation = 0, 2, 4, 6, 8 etc.                                                     */
@@ -242,8 +243,9 @@ int main()
     MPI_Send_init( life_copy + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests_odd[6] );
     MPI_Send_init( life_copy + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests_odd[7] );
 
-    /* Synchronize all the processes before we start */
+    /* Synchronize all the processes before we start, and also define the number of OMP threads */
     MPI_Barrier(cartesian2D);
+    omp_set_num_threads(1);
     t1 = MPI_Wtime();
     MPI_Pcontrol(1);
 
@@ -329,11 +331,11 @@ int main()
             MPI_Start(&send_requests_even[6]);
             MPI_Start(&send_requests_even[7]);
 
-            Next_generation_inner(rows, columns, life, life_copy, &local_sum);
+            local_sum = Next_generation_inner(rows, columns, life, life_copy);
 
             MPI_Waitall(8, receive_requests_even, statuses);
 
-            Next_generation_outer(rows, columns, life, life_copy, &local_sum);
+            local_sum += Next_generation_outer(rows, columns, life, life_copy);
 
 #ifdef DEBUG_GRID
 #ifdef BLOCKS
@@ -375,7 +377,6 @@ int main()
             if (generation % 10 == 0)
                 MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
-            local_sum = 0;
             MPI_Waitall(8, send_requests_even, statuses);
         }
         else
@@ -398,11 +399,11 @@ int main()
             MPI_Start(&send_requests_odd[6]);
             MPI_Start(&send_requests_odd[7]);
 
-            Next_generation_inner(rows, columns, life, life_copy, &local_sum);
+            local_sum = Next_generation_inner(rows, columns, life, life_copy);
 
             MPI_Waitall(8, receive_requests_odd, statuses);
 
-            Next_generation_outer(rows, columns, life, life_copy, &local_sum);
+            local_sum += Next_generation_outer(rows, columns, life, life_copy);
 
 #ifdef DEBUG_GRID
 #ifdef BLOCKS
@@ -444,7 +445,6 @@ int main()
             if (generation % 10 == 0)
                 MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
-            local_sum = 0;
             MPI_Waitall(8, send_requests_odd, statuses);
         }
     }
@@ -468,13 +468,13 @@ int main()
  * Randomly produces the first generation. The living organisms
  * are represented by a 1, and the dead organisms by a 0.
  ****************************************************************/
-void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, int *local_sum, int *global_sum, MPI_Comm *cartesian2D, int rank)
+void inline Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, MPI_Comm *cartesian2D, int rank)
 {
     float probability;
     srand(seed);
     int i, j, lsum = 0;
 
-#pragma omp parallel for collapse(2) private(i,j) schedule(static) reduction(+:lsum)
+    #pragma omp parallel for collapse(2) private(i, j) schedule(static)
     for (i = 0; i < rows; i++)
     {
         for (j = 0; j < columns; j++)
@@ -491,12 +491,9 @@ void inline Initial_state(int rows, int columns, char *first_generation, char *f
             else
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
 
-            lsum += *(first_generation + i * columns + j);
             /* printf("mpirank=%2d Trank=%2d (total=%2d). My i is %d and my j is %d\n", rank, omp_get_thread_num(), omp_get_num_threads(), i, j); */
         }
     }
-    *local_sum = lsum;
-    MPI_Allreduce(local_sum, global_sum, 1, MPI_INT, MPI_SUM, *cartesian2D);
 }
 
 /****************************************************************
@@ -522,102 +519,119 @@ void inline Print_grid(int rows, int columns, char *life)
  * are represented by a 1, and the dead organisms by a 0. This function only
  * calculates the inner organisms, while we wait to receive all the halo information
  *************************************************************************************/
-void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy, int* local_sum)
+int inline Next_generation_inner(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors, i, j, lsum = 0;
+    char same = 1;
 
- #pragma omp parallel for collapse(2) private(i,j) schedule(static) reduction(+:lsum)
-    for (i = 2; i < rows - 2; i++)
+    #pragma omp parallel
     {
-        for (j = 2; j < columns - 2; j++)
+        #pragma omp for collapse(2) private(i, j, same) schedule(static)
+        for (i = 2; i < rows - 2; i++)
         {
-            neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
-                        *(life + i * columns + (j - 1))                          +                *(life + i * columns + (j + 1))       +
-                        *(life + (i + 1) * columns + (j - 1)) + *(life + (i + 1) * columns + j) + *(life + (i + 1) * columns + (j + 1));
+            for (j = 2; j < columns - 2; j++)
+            {
+                neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
+                    *(life + i * columns + (j - 1)) + *(life + i * columns + (j + 1)) +
+                    *(life + (i + 1) * columns + (j - 1)) + *(life + (i + 1) * columns + j) + *(life + (i + 1) * columns + (j + 1));
 
-            if (neighbors == 3 || (neighbors == 2 && *(life_copy + i * columns + j) == 1))
-                *(life_copy + i * columns + j) = 1;
-            else
-                *(life_copy + i * columns + j) = 0;
+                if (neighbors == 3 || (neighbors == 2 && *(life_copy + i * columns + j) == 1))
+                    *(life_copy + i * columns + j) = 1;
+                else
+                    *(life_copy + i * columns + j) = 0;
 
-            lsum += *(life_copy + i * columns + j);
+                same = same && (*(life + i * columns + j) == *(life_copy + i * columns + j));
+            }
+        }
+
+        #pragma omp reduction(+:lsum)
+        {
+            lsum += same;
         }
     }
-    *local_sum = lsum;
+    return lsum;
 }
 
 /****************************************************************************************
  * Calculates the organisms only at the borders, after receiving all the halo elements
  ****************************************************************************************/
-void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy, int* local_sum)
+int inline Next_generation_outer(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors, i, lsum = 0;
+    char same = 1;
 
-    /* Upper row */
-#pragma omp parallel for schedule(static) reduction(+:lsum)
-    for (i = 1; i < columns - 1; i++)
+    #pragma omp parallel
     {
-        neighbors = *(life + i - 1)               + *(life + i)  +              *(life + i + 1)               +
-                    *(life + columns + i - 1)     + /* you are here */          *(life + columns + i + 1)     +
-                    *(life + columns * 2 + i - 1) + *(life + columns * 2 + i) + *(life + columns * 2 + i + 1);
+        /* Upper row */
+        #pragma omp for private(i, same) schedule(static)
+        for (i = 1; i < columns - 1; i++)
+        {
+            neighbors = *(life + i - 1) + *(life + i) + *(life + i + 1) +
+                *(life + columns + i - 1) + /* you are here */          *(life + columns + i + 1) +
+                *(life + columns * 2 + i - 1) + *(life + columns * 2 + i) + *(life + columns * 2 + i + 1);
 
-        if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns + i) == 1))
-            *(life_copy + columns + i) = 1;
-        else
-            *(life_copy + columns + i) = 0;
+            if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns + i) == 1))
+                *(life_copy + columns + i) = 1;
+            else
+                *(life_copy + columns + i) = 0;
 
-        lsum += *(life_copy + columns + i);
+            same = same && (*(life + columns + i) == *(life_copy + columns + i));
+        }
+
+        /* Left column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
+        #pragma omp for private(i, same) schedule(static)
+        for (i = 2; i < rows - 2; i++)
+        {
+            neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
+                *(life + columns * i) + /* you are here */                *(life + columns * i + 2) +
+                *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
+
+            if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * i + 1) == 1))
+                *(life_copy + columns * i + 1) = 1;
+            else
+                *(life_copy + columns * i + 1) = 0;
+
+            same = same && (*(life + columns * i + 1) == *(life_copy + columns * i + 1));
+        }
+
+        /* Right column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
+        #pragma omp for private(i, same) schedule(static)
+        for (i = 2; i < rows - 2; i++)
+        {
+            neighbors = *(life + columns * i - 3) + *(life + columns * i - 2) + *(life + columns * i - 1) +
+                *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1) +
+                *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
+
+            if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (i + 1) - 2) == 1))
+                *(life_copy + columns * (i + 1) - 2) = 1;
+            else
+                *(life_copy + columns * (i + 1) - 2) = 0;
+
+            same = same && (*(life + columns * (i + 1) - 2) == *(life_copy + columns * (i + 1) - 2));
+        }
+
+        /* Bottom row */
+        #pragma omp for private(i, same) schedule(static)
+        for (i = 1; i < columns - 1; i++)
+        {
+            neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1) +
+                *(life + columns * (rows - 2) + i - 1) + /* you are here */                   *(life + columns * (rows - 2) + i + 1) +
+                *(life + columns * (rows - 1) + i - 1) + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
+
+            if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (rows - 2) + i) == 1))
+                *(life_copy + columns * (rows - 2) + i) = 1;
+            else
+                *(life_copy + columns * (rows - 2) + i) = 0;
+
+            same = same && (*(life + columns * (rows - 2) + i) == *(life_copy + columns * (rows - 2) + i));
+        }
+
+        #pragma omp reduction(+:lsum)
+        {
+            lsum += same;
+        }
     }
-
-    /* Left column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
-#pragma omp parallel for schedule(static) reduction(+:lsum)
-    for (i = 2; i < rows - 2; i++)
-    {
-        neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
-                    *(life + columns * i)       + /* you are here */                *(life + columns * i + 2)       +
-                    *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
-
-        if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * i + 1) == 1))
-            *(life_copy + columns * i + 1) = 1;
-        else
-            *(life_copy + columns * i + 1) = 0;   
-
-        lsum += *(life_copy + columns * i + 1);
-    }
-
-    /* Right column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
-#pragma omp parallel for schedule(static) reduction(+:lsum)
-    for (i = 2; i < rows - 2; i++)
-    {
-        neighbors = *(life + columns * i - 3)       + *(life + columns * i - 2)       + *(life + columns * i - 1)             +
-                    *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1)       +
-                    *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
-
-        if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (i + 1) - 2) == 1))
-            *(life_copy + columns * (i + 1) - 2) = 1;
-        else
-            *(life_copy + columns * (i + 1) - 2) = 0;
-
-        lsum += *(life_copy + columns * (i + 1) - 2);
-    }
-
-    /* Bottom row */
-#pragma omp parallel for schedule(static) reduction(+:lsum)
-    for (i = 1; i < columns - 1; i++)
-    {
-        neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1)     +
-                    *(life + columns * (rows - 2) + i - 1) + /* you are here */                   *(life + columns * (rows - 2) + i + 1)     +
-                    *(life + columns * (rows - 1) + i - 1) + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
-
-        if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (rows - 2) + i) == 1))
-            *(life_copy + columns * (rows - 2) + i) = 1;
-        else
-            *(life_copy + columns * (rows - 2) + i) = 0;
-
-        lsum += *(life_copy + columns * (rows - 2) + i);
-    }
-
-    *local_sum += lsum;
+    return lsum;
 }
 
 void inline Swap(char **a, char **b)
