@@ -1,7 +1,106 @@
 \section{Επεξήγηση κώδικα}
+\subsection{life.cpp}
+Αρχικά έχουμε τις εξής global μεταβλητές:
+\begin{tcolorbox}
+\begin{minted}{cpp}
+///////////////////////////////////////////////////////////////////////
+// size        - The size of one side of the square grid
+// generations - The number of generations for which the game will run
+// nthreads    - The number of threads per block
+// dimGr     - The number of blocks
+///////////////////////////////////////////////////////////////////////
+#ifndef DEBUG
+constexpr int size = 840;
+constexpr int generations = 2000;
+constexpr int nthreads = 64;
+constexpr int dimGr = size * size / nthreads;
+const     int blockSide = static_cast<int>(size / sqrt(dimGr));
+dim3 dimBl(blockSide, blockSide);
+#else
+constexpr int size = 8;
+constexpr int generations = 2;
+constexpr int nthreads = 4;
+constexpr int dimGr = size * size / nthreads;
+const     int blockSide = static_cast<int>(size / sqrt(dimGr));
+dim3 dimBl(blockSide, blockSide);
+#endif
+\end{minted}
+\end{tcolorbox}
+
+\begin{multicols}{2}
+Επιλέγουμε με την μεταβλητή \mintinline{cpp}{nthreads} το πλήθος των threads που θα έχει το κάθε block. Επιλέγουμε 64, επειδή θέλουμε να «μιμηθούμε» το πώς το MPI κατένειμε τις διεργασίες στις δοκιμές που τρέξαμε. Το σκεπτικό εδώ είναι πως θέλουμε το κάθε block να είναι σαν μία MPI διεργασία. Επομένως θέλουμε κάθε block να είναι τετράγωνο όσον αφορά τις διαστάσεις του, οπότε επιλέγουμε το 64 που είναι τέλειο τετράγωνο και, σύμφωνα με το CUDA Occupancy Calculator, για Compute Capability 6.2 που έχουν οι Quadro P4000, έχουμε 100\% occupancy. Οπότε, εκμεταλλευόμαστε πλήρως τις δυνατότητες της κάρτας. Με αυτό το σκεπτικό, το κάθε block θα είναι διαστάσεων $8 * 8$. Τα μεγέθη του πίνακα που θα χρησιμοποιηθούν, ξεκινώντας από 840, διαιρούνται ακριβώς με το 8, οπότε ικανοποιούνται όλες οι προϋποθέσεις. Ενδεχομένως με διαφορετικές ρυθμίσεις να επιτυγχάναμε καλύτερες μετρήσεις, αλλά ο στόχος είναι να είμαστε «κοντά» στο MPI ώστε να μπορούμε να κάνουμε και κάπως καλύτερες συγκρίσεις. Έτσι λοιπόν προκύπτει και το πλήθος των blocks με τον υπολογισμό:
+
+\begin{tcolorbox}
+\mintinline{cpp}{constexpr int dimGr = size * size / nthreads;}
+\end{tcolorbox}
+
+Οι επόμενες δύο εντολές μας δίνουν και το μέγεθος του block.
+\end{multicols}
+
+\begin{tcolorbox}
+\begin{minted}{cpp}
+const     int blockSide = static_cast<int>(size / sqrt(dimGr));
+dim3 dimBl(blockSide, blockSide);
+\end{minted}
+\end{tcolorbox}
+
+Στη συνέχεια ξεκινά η \mintinline{cpp}{main}, όπου αρχικοποιούμε το πλέγμα με την βοήθεια της \mintinline{cpp}{Initial_state}, και στη συνέχεια με την απόμενη εντολή καλούμε την συνάρτηση η οποία θα τρέξει το παιχνίδι.
+
+\begin{tcolorbox}
+\mintinline{cpp}{float msecs = GameOfLife(rows, columns, h_life, h_life_copy, dimGr, dimBl, generations);}
+\end{tcolorbox}
+
+\subsection{next\_generation.cu}
+Στην συνάρτηση αυτή λοιπόν, αρχικά έχουμε τους δύο πίνακες που θα αντιγραφούν στην GPU.
+
+\begin{tcolorbox}
+\begin{minted}{cpp}
+char* d_life;
+char* d_life_copy;
+\end{minted}
+\end{tcolorbox}
+
+Στη συνέχεια τις κάνουμε allocate και copy στην GPU με \mintinline{cpp}{cudaMalloc} και \mintinline{cpp}{cudaMemcpy}. Το παιχνίδι ξεκινά να τρέχει στο κύριο loop.
+
+\begin{tcolorbox}
+\begin{minted}{cpp}
+for (int gen = 0; gen < generations; gen++) {
+    nextGen<<<dimGr, dimBl>>>(rows, columns, d_life, d_life_copy);
+\end{minted}
+\end{tcolorbox}
+
+Ο kernel \mintinline{cpp}{__global__ void nextGen(const int rows, const int columns, char* d_life, char* d_life_copy)} εκτελείται σε κάθε επανάληψη και υπολογίζει την επόμενη γενιά. Η μόνη σημαντική διαφορά με την υλοποίηση στο MPI, είναι πως εδώ δεν έχουμε άλω σειρές και στήλες. Αντ' αυτού, υπολογίζουμε όλους τους γείτονες ενός στοιχείου με τις παρακάτω εντολές.
+
+\begin{tcolorbox}
+\begin{minted}{cpp}
+first_in_row = cell -  cell % columns;
+down         = (cell + columns) % (rows * columns);
+up           = (cell + rows * columns - columns) % (rows * columns);
+left         = (cell + rows * columns - 1) % columns + first_in_row;
+right        = (cell + rows * columns + 1) % columns + first_in_row;
+upleft       = (left + rows * columns - columns) % (rows * columns);
+downleft     = (left + rows * columns + columns) % (rows * columns);
+upright      = (right + rows * columns - columns) % (rows * columns);
+downright    = (right + rows * columns + columns) % (rows * columns);
+\end{minted}
+\end{tcolorbox}
+
+Στο τέλος κάθε επανάληψης, κάνουμε φυσικά και την ανταλλαγή των pointers. Δεν χρησιμοποιούμε κάποια δική μας συνάρτηση πλέον, αλλά την swap του STL.
+
+\begin{tcolorbox}
+\begin{minted}{cpp}
+///////////////////////////////////////////////////////////////////////////////
+// Swap the addresses of the two tables. That way, we avoid copying the contents
+// of d_life to d_life_copy. Each round, the addresses are exchanged, saving
+// time from running a loop to copy the contents.
+///////////////////////////////////////////////////////////////////////////////
+std::swap(d_life, d_life_copy);
+\end{minted}
+\end{tcolorbox}
+
 \section{Μετρήσεις στην Αργώ με μία GPU}
 
-
+Ακολουθεί ο πίνακας των χρόνων από τις μετρήσεις στη Αργώ \emph{με μία GPU}\footnote{Τα αποτελέσματα μπορούν να βρεθούν στο directory \path{/home/pool/argo029/GameOfLife/CUDA/Results}}. Οι χρόνοι είναι σε milliseconds.
 \begin{table}[H]
 \centering
 \small
@@ -25,3 +124,6 @@
 \caption{Χρόνοι για CUDA}
 \label{tab:timesCUDA}
 \end{table}
+\begin{multicols}{2}
+Ας πάρουμε την περίπτωση του μεγέθους 13440 και να την συγκρίνουμε με τις αντίστοιχες των καθαρών MPI\textsuperscript{\ref{tab:timesMPI}} (χωρίς Allreduce) και των υβριδικών\textsuperscript{\ref{tab:timesMPIOpenMP}}. Το CUDA χρειάστηκε 248484.89\si{\milli\second}, ή αλλιώς 248.5 δευτερόλεπτα. Τα καθαρά MPI χρειάζονται τουλάχιστον 16 διεργασίες για να πετύχουν καλύτερο χρόνο από αυτόν, άρα τουλάχιστον 2 κόμβους. Για τα υβριδικά οι περισσότερες μετρήσεις πέρασαν το timeout οπότε δε μπορούμε να είμαστε βέβαιοι, αλλά παρόλα αυτά μάλλον ισχύει το ίδιο που είδαμε και στα καθαρά MPI. Τα υβριδικά για το αμέσως προηγούμενο μέγεθος προβλήματος 6720 χρειάστηκαν 48.72\si{\second}, επομένως για τον διπλασιασμό της πλευράς θα έχουμε περίπου τετραπλάσιο χρόνο, άρα $48.72 * 4 = 194.88$\si{\second}. Οπότε ξανά χρειαζόμαστε 16 πυρήνες για να ξεπεράσουμε τις επιδόσεις της GPU. Είναι εμφανές πως η GPU προσφέρει ανώτερες επιδόσεις για το συγκεκριμένο πρόβλημα.
+\end{multicols}

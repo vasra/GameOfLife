@@ -22,6 +22,8 @@
 \usepackage{siunitx}
 \usepackage{float}
 \usepackage{tabularx}
+\usepackage{changepage}
+\usepackage{pgfplotstable}
 \usepackage{hyperref}
 
 \hypersetup{
@@ -37,6 +39,7 @@
 % Fonts
 \setmainfont{Times New Roman}
 \setminted[C]{style=pastie,breaklines,breakautoindent,breaksymbolleft={},fontsize=\footnotesize}
+\setminted[cpp]{style=pastie,breaklines,breakautoindent,breaksymbolleft={},fontsize=\footnotesize}
 \renewcommand\contentsname{Περιεχόμενα}
 \renewcommand{\chaptername}{ΘΕΜΑ}
 \renewcommand{\figurename}{Σχήμα}
@@ -50,7 +53,7 @@
 % Title
 \title {Παράλληλα Υπολογιστικά Συστήματα\\Εργασία 2019--2020\\Conway’s Game of Life}
 \author {Ραδιώτης Βασίλειος EN1180005}
-\date {\today}
+\date {11 Οκτωβρίου 2020}
 
 \begin{document}
 
@@ -70,7 +73,7 @@
 \chapter {CUDA}
 \input     {chapters/CUDA}
 
-\chapter {mpptest}
-\input     {chapters/mpptest}
+\chapter {Σημειώσεις}
+\input     {chapters/Notes}
 
 \end{document}

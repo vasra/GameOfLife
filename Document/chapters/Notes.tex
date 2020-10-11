@@ -1,0 +1,87 @@
+\section{Mpptest στην Αργώ}
+
+Σύμφωνα με τα email που ανταλλάξαμε στις 25 Μαρτίου, παραθέτω τα αποτελέσματα του mpptest από το αρχείο που μου επισυνάψατε. \\
+\newline
+Internal- 2 processes in same node \\
+(intra process Blocking Isend-IRecv) \\
+\# OSU MPI Bandwidth Test v5.6.1 \\
+\# Size      Bandwidth (MB/s) \\
+8192                 2794.58 \\
+16384                3384.78 \\
+32768                4462.94 \\
+65536                5302.48 \\
+131072               5855.94 \\
+262144               6208.22 \\
+524288               6406.86 \\
+1048576              6532.84 \\
+\# OSU MPI Latency Test v5.6.1 \\
+\# Size          Latency (us) \\
+0                       0.24 \\
+\newline
+Internal- 2 processes in 2 nodes \\
+(inter process Blocking Isend-IRecv) \\
+1G network \\
+\# OSU MPI Bandwidth Test v5.6.1 \\
+\# Size      Bandwidth (MB/s) \\
+1024                   89.34 \\
+2048                  100.96 \\
+4096                  108.92 \\
+8192                  113.20 \\
+16384                 115.26 \\
+32768                 116.37 \\
+65536                 550.71 \\
+131072                612.21 \\
+262144                628.18 \\
+524288                615.50 \\
+1048576               586.41 \\
+\newline
+\# OSU MPI Latency Test v5.6.1 \\
+\# Size          Latency (us) \\
+0                      56.49 \\
+1                      56.76 \\
+2                      56.58 \\
+4                      56.62 \\
+8                      56.90 \\
+16                     56.85 \\
+32                     57.10 \\
+64                     58.35 \\
+128                    59.31 \\
+\newline
+For 10G network \\
+\newline
+\# OSU MPI Bandwidth Test v5.6.1 \\
+\# OSU MPI Bandwidth Test v5.6.1 \\
+\# Size      Bandwidth (MB/s) \\
+1024                   89.34 \\
+2048                  100.96 \\
+4096                  108.92 \\
+8192                  113.20 \\
+16384                 115.26 \\
+32768                 116.37 \\
+65536                 550.71 \\
+131072                612.21 \\
+262144                628.18 \\
+524288                615.50 \\
+1048576               586.41 \\
+\# OSU MPI Latency Test v5.6.1 \\
+\# Size          Latency (us) \\
+0                      56.49 \\
+1                      56.76 \\
+2                      56.58 \\
+4                      56.62 \\
+8                      56.90 \\
+16                     56.85 \\
+32                     57.10 \\
+64                     58.35 \\
+128                    59.31 \\
+
+\clearpage
+\section{Λοιπές σημειώσεις}
+Ο κώδικας του project μπορεί να βρεθεί στο αντίστοιχο \href{https://github.com/vasra/GameOfLife}{github repository}. Υπάρχουν πέντε branches συνολικά. 
+\begin{description}
+\item[master] Μία απλή υλοποίηση του ακολουθιακού προγράμματος.
+\item[MPI] Το καθαρό MPI πρόγραμμα χωρίς Allreduce.
+\item[MPI\_Allreduce] Ίδιος κώδικας με το MPI branch, με τη μοναδική προσθήκη να είναι το Allreduce.
+\item[MPI\_OpenMP] Ο κώδικας του MPI\_Allreduce branch, με τις απαραίτητες προσθήκες ώστε το πρόγραμμα να είναι υβριδικό με OpenMP. Ο κώδικας αυτού του branch είναι και το τελικό παραδοτέο.
+\item[CUDA] Ο κώδικας για το CUDA.
+\end{description}
