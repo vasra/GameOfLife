@@ -73,7 +73,9 @@
 \chapter {CUDA}
 \input     {chapters/CUDA}
 
-\chapter {Σημειώσεις}
-\input     {chapters/Notes}
+\renewcommand{\chaptername}{}
+\chapter *{Σημειώσεις}
+\addcontentsline{toc}{chapter}{Σημειώσεις}
+\input       {chapters/Notes}
 
 \end{document}
