@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include <omp.h>
 #include "mpi.h"
+#include <utility>
 
-/* The size of one side of the square grid */
+// The size of one side of the square grid
 #define SIZE 840
 #define NDIMS 2
 #define BLOCKS
@@ -23,49 +23,49 @@ void inline Swap(char **a, char **b);
 int 
 main()
 {
-    /********************************************************************************************************
-     * ARRAYS FOR THE CARTESIAN TOPOLOGY
-     * dim_size - Array with two elements
-     *     dim_size[0]  - How many processes will be in each row
-     *     dim_size[1]  - How many processes will be in each column
-     *
-     * periods                    - Array with two elements, for the periodicity of the two dimensions
-     * coords                     - Array with two elements, holding the coordinates of the current process
-     * north, east etc.           - The coordinates of each of our eight neighbors
-     ********************************************************************************************************/
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ARRAYS FOR THE CARTESIAN TOPOLOGY
+    // dim_size - Array with two elements
+    //     dim_size[0]  - How many processes will be in each row
+    //     dim_size[1]  - How many processes will be in each column
+    //
+    // periods                    - Array with two elements, for the periodicity of the two dimensions
+    // coords                     - Array with two elements, holding the coordinates of the current process
+    // north, east etc.           - The coordinates of each of our eight neighbors
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     int dim_size[NDIMS], periods[NDIMS], coords[NDIMS];
     int north[NDIMS], east[NDIMS], south[NDIMS], west[NDIMS],
         northeast[NDIMS], southeast[NDIMS], southwest[NDIMS], northwest[NDIMS];
 
-    /*******************************************************************************************************
-     * VARIABLES FOR THE CARTESIAN TOPOLOGY
-     * reorder                    - Indicates if MPI can rearrange the processes more efficiently among the processors
-     * rank                       - Process rank
-     * processes                  - The total number of processes in the communicator
-     * rows                       - The number of rows of the local 2D matrix
-     * columns                    - The number of columns of the local 2D matrix
-     * seed                       - The seed used to randomly create the first generation
-     * north_rank, east_rank etc. - The ranks of the neighbors
-     * cartesian2D                - Our new custom Communicator
-     *******************************************************************************************************/
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // VARIABLES FOR THE CARTESIAN TOPOLOGY
+    // reorder                    - Indicates if MPI can rearrange the processes more efficiently among the processors
+    // rank                       - Process rank
+    // processes                  - The total number of processes in the communicator
+    // rows                       - The number of rows of the local 2D matrix
+    // columns                    - The number of columns of the local 2D matrix
+    // seed                       - The seed used to randomly create the first generation
+    // north_rank, east_rank etc. - The ranks of the neighbors
+    // cartesian2D                - Our new custom Communicator
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     int            reorder, rank, processes, rows, columns, seed;
     int            north_rank, east_rank, south_rank, west_rank,
                    northeast_rank, southeast_rank, southwest_rank, northwest_rank;
     MPI_Comm       cartesian2D;
 
-    /***************************************************************************************************************
-     * VARIABLES FOR MPI
-     * row_datatype                                - custom datatype to send/receive the halo rows
-     * column_datatype                             - custom datatype to send/receive the halo columns
-     * receive_requests_even, receive_requests_odd - arrays holding all the requests for receiving messages
-     * send_requests_even, send_requests_odd       - arrays holding all the requests for sending messages
-     * statuses                                    - array holding the output of the Waitall operation
-     * t1, t2                                      - used for MPI_Wtime
-     * root                                        - used to check if the number of processes is a perfect square
-     * local_sum, global_sum                       - sums used in the MPI_Allreduce operation
-     ***************************************************************************************************************/
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+     // VARIABLES FOR MPI
+     // row_datatype                                - custom datatype to send/receive the halo rows
+     // column_datatype                             - custom datatype to send/receive the halo columns
+     // receive_requests_even, receive_requests_odd - arrays holding all the requests for receiving messages
+     // send_requests_even, send_requests_odd       - arrays holding all the requests for sending messages
+     // statuses                                    - array holding the output of the Waitall operation
+     // t1, t2                                      - used for MPI_Wtime
+     // root                                        - used to check if the number of processes is a perfect square
+     // local_sum, global_sum                       - sums used in the MPI_Allreduce operation
+     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     MPI_Datatype   row_datatype, column_datatype;
     MPI_Request    receive_requests_even[8], send_requests_even[8], receive_requests_odd[8], send_requests_odd[8];
@@ -73,20 +73,20 @@ main()
     double         t1, t2, root;
     int            local_sum = 0, global_sum = 0;
     
-    /* Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1 */
+    // Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1
     periods[0] = periods[1] = 1;
 
-    /* We will allow MPI to efficiently reorder the processes among the different processors */
+    // We will allow MPI to efficiently reorder the processes among the different processors
     reorder = 1;
 
-    /* Initialize MPI */
+    // Initialize MPI
     MPI_Init(NULL, NULL);
     MPI_Pcontrol(0);
     MPI_Comm_size(MPI_COMM_WORLD, &processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 #ifdef BLOCKS
-    /* If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions */
+    // If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions
     root = sqrt((double)processes);
 
     if (root == floor(root))
@@ -98,7 +98,7 @@ main()
     dim_size[1] = 1;
 #endif
 
-    /* Let MPI decide which is the best arrangement according to the number of processes and dimensions */
+    // Let MPI decide which is the best arrangement according to the number of processes and dimensions
     if ( MPI_Dims_create(processes, NDIMS, dim_size) != MPI_SUCCESS ) {
         if (rank == 0)
             printf("Number of processes and size of grid do not match. MPI_Dims_create() returned an error. Exiting.\n");
@@ -107,21 +107,21 @@ main()
         return -1;
     }
 
-    /* Create a 2D Cartesian topology. Find the rank and coordinates of each process */
+    // Create a 2D Cartesian topology. Find the rank and coordinates of each process
     MPI_Cart_create(MPI_COMM_WORLD, NDIMS, dim_size, periods, reorder, &cartesian2D);
     MPI_Cart_coords(cartesian2D, rank, NDIMS, coords);
 
 #ifdef BLOCKS
-    /* We add 2 to each dimension in order to include the halo rows and columns */
+    // We add 2 to each dimension in order to include the halo rows and columns
     rows = (SIZE / dim_size[0]) + 2;
     columns = (SIZE /dim_size[1]) + 2;
 #else
-    /* If the size of the grid divides evely by the number of processes, then every process gets the same amount of rows... */
+    // If the size of the grid divides evely by the number of processes, then every process gets the same amount of rows...
     if (SIZE % processes == 0)
         rows = SIZE / processes;
     else
     {
-        /* ...otherwise, the last process will get a few more rows */
+        // ...otherwise, the last process will get a few more rows
         if (rank != processes - 1)
             rows = SIZE / processes;
         else
@@ -131,7 +131,7 @@ main()
     columns = SIZE + 2;
 #endif
 
-    /* Calculate the coordinates and ranks of all neighbors */
+    // Calculate the coordinates and ranks of all neighbors
     north[0] = coords[0] - 1;
     north[1] = coords[1];
     MPI_Cart_rank(cartesian2D, north, &north_rank);
@@ -164,32 +164,28 @@ main()
     northwest[1] = coords[1] - 1;
     MPI_Cart_rank(cartesian2D, northwest, &northwest_rank);
 
-    /* We need two datatypes for the halos, one for the rows and one for the columns */
+    // We need two datatypes for the halos, one for the rows and one for the columns
     MPI_Type_contiguous(columns - 2, MPI_CHAR, &row_datatype);
     MPI_Type_commit(&row_datatype);
 
     MPI_Type_vector(rows - 2, 1, columns, MPI_CHAR, &column_datatype);
     MPI_Type_commit(&column_datatype);
 
-    /* Pointers to our 2D grid, and its necessary copy */
+    // Pointers to our 2D grid, and its necessary copy
     char *life = (char*)malloc( rows * columns * sizeof(char) );
     char *life_copy = (char*)malloc( rows * columns * sizeof(char) );
 
-    /* Generate the first generation according to the random seed */
+    // Generate the first generation according to the random seed
     seed = rank + 2;
     Initial_state(rows, columns, life, life_copy, seed, &cartesian2D, rank);
 
 #ifdef ALL_REDUCE
     if (rank != 0)
-    {
         MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
-    }
-    else
-    {
+    else {
         int temp;
         MPI_Status status;
-        for (int i = 1; i < processes; i++)
-        {
+        for (int i = 1; i < processes; i++) {
             MPI_Recv(&temp, processes - 1, MPI_INT, i, i, cartesian2D, &status);
             printf("local sum of process %d is %d\n", i, temp);
         }
@@ -197,10 +193,10 @@ main()
     }
 #endif
 
-    /*******************************************************************************************************************************************/
-    /* We implement persistent communication, since the neighboring processes will always remain the same through the execution of the program */
-    /* These are for the even iterations of the loop, e.g. generation = 0, 2, 4, 6, 8 etc.                                                     */
-    /*******************************************************************************************************************************************/
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // We implement persistent communication, since the neighboring processes will always remain the same through the execution of the program
+    // These are for the even iterations of the loop, e.g. generation = 0, 2, 4, 6, 8 etc.                                                    
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     MPI_Recv_init( life + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests_even[0] );
     MPI_Recv_init( life + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests_even[1] );
     MPI_Recv_init( life + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests_even[2] );
@@ -221,9 +217,9 @@ main()
     MPI_Send_init( life + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests_even[6] );
     MPI_Send_init( life + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests_even[7] );
 
-    /**************************************************************************************/
-    /* These are for the odd iterations of the loop, e.g. generation = 1, 3, 5, 7, 9 etc. */
-    /**************************************************************************************/
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // These are for the odd iterations of the loop, e.g. generation = 1, 3, 5, 7, 9 etc.
+    ////////////////////////////////////////////////////////////////////////////////////////
     MPI_Recv_init( life_copy + 1, 1, row_datatype, north_rank, north_rank, cartesian2D, &receive_requests_odd[0] );
     MPI_Recv_init( life_copy + (rows - 1) * columns + 1, 1, row_datatype, south_rank, south_rank, cartesian2D, &receive_requests_odd[1] );
     MPI_Recv_init( life_copy + columns, 1, column_datatype, west_rank, west_rank, cartesian2D, &receive_requests_odd[2]) ;
@@ -244,14 +240,13 @@ main()
     MPI_Send_init( life_copy + (columns * 2) - 2, 1, MPI_CHAR, northeast_rank, rank, cartesian2D, &send_requests_odd[6] );
     MPI_Send_init( life_copy + columns + 1, 1, MPI_CHAR, northwest_rank, rank, cartesian2D, &send_requests_odd[7] );
 
-    /* Synchronize all the processes before we start, and also define the number of OMP threads */
+    // Synchronize all the processes before we start
     MPI_Barrier(cartesian2D);
-    omp_set_num_threads(1);
     t1 = MPI_Wtime();
     MPI_Pcontrol(1);
 
 #ifdef DEBUG_COORDINATES
-    /* Print the coordinates and neighbours of process 0 to get a general idea about the layout of the grid */
+    // Print the coordinates and neighbours of process 0 to get a general idea about the layout of the grid
     if (rank == 0) {
         printf("rows are %d\n", rows);
         printf("columns are %d\n\n", columns);
@@ -270,7 +265,7 @@ main()
 
 #ifdef DEBUG_GRID
 #ifdef BLOCKS
-    /* Print the grid of every process, before the exchange of the halo elements and before the beginning of the main loop*/
+    // Print the grid of every process, before the exchange of the halo elements and before the beginning of the main loop
     if (rank == 0) {
         MPI_Status status;
         char* process2 = (char *)malloc( rows * columns * sizeof(char));
@@ -302,7 +297,7 @@ main()
 #endif
 #endif
 
-    /* Modify the number of generations as desired */
+    // Modify the number of generations as desired
     for (int generation = 0; generation < 2000; generation++) {
         if (generation % 2 == 0) {
             MPI_Start(&receive_requests_even[0]);
@@ -331,7 +326,7 @@ main()
 
 #ifdef DEBUG_GRID
 #ifdef BLOCKS
-            /* Print the grid of every process */
+            // Print the grid of every process
             if (rank == 0) {
                 printf("Generation %d:\n", generation);
                 MPI_Status status;
@@ -357,12 +352,13 @@ main()
             }
 #endif
 #endif
-            /************************************************************************************************
-            * Swap the addresses of the two tables. That way, we avoid copying the contents
-            * of life to life_copy. Each round, the addresses are exchanged, saving time from running
-            * a loop to copy the contents.
-            ************************************************************************************************/
-            Swap(&life, &life_copy);
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            // Swap the addresses of the two tables. That way, we avoid copying the contents
+            // of life to life_copy. Each round, the addresses are exchanged, saving time from running
+            // a loop to copy the contents.
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            //Swap(&life, &life_copy);
+            std::swap(life, life_copy);
             if (generation % 10 == 0)
                 MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
@@ -395,7 +391,7 @@ main()
 
 #ifdef DEBUG_GRID
 #ifdef BLOCKS
-            /* Print the grid of every process */
+            // Print the grid of every process
             if (rank == 0) {
                 printf("Generation %d:\n", generation);
                 MPI_Status status;
@@ -421,12 +417,13 @@ main()
             }
 #endif
 #endif
-            /************************************************************************************************
-            * Swap the addresses of the two tables. That way, we avoid copying the contents
-            * of life to life_copy. Each round, the addresses are exchanged, saving time from running
-            * a loop to copy the contents.
-            ************************************************************************************************/
-            Swap(&life, &life_copy);
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            // Swap the addresses of the two tables. That way, we avoid copying the contents
+            // of life to life_copy. Each round, the addresses are exchanged, saving time from running
+            // a loop to copy the contents.
+            /////////////////////////////////////////////////////////////////////////////////////////////////
+            //Swap(&life, &life_copy);
+            std::swap(life, life_copy);
             if (generation % 10 == 0)
                 MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
@@ -440,7 +437,7 @@ main()
     if (rank == 0)
         printf("Elapsed time is %f:\n", (t2 - t1) );
 
-    /* Clean up and exit */
+    // Clean up and exit
     free(life);
     free(life_copy);
     MPI_Type_free(&row_datatype);
@@ -449,10 +446,10 @@ main()
     return 0;
 }
 
-/****************************************************************
- * Randomly produces the first generation. The living organisms
- * are represented by a 1, and the dead organisms by a 0.
- ****************************************************************/
+////////////////////////////////////////////////////////////////
+// Randomly produces the first generation. The living organisms
+// are represented by a 1, and the dead organisms by a 0.
+////////////////////////////////////////////////////////////////
 void inline
 Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, MPI_Comm *cartesian2D, int rank)
 {
@@ -462,7 +459,7 @@ Initial_state(int rows, int columns, char *first_generation, char *first_generat
 
     for (i = 0; i < rows; i++) {
         for (j = 0; j < columns; j++) {
-            /* Initialize all halo values to 0. The rest will be assigned values randomly */
+            // Initialize all halo values to 0. The rest will be assigned values randomly
             if (i == 0 || j == 0 || i == rows - 1 || j == columns - 1) {
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
                 continue;
@@ -472,15 +469,13 @@ Initial_state(int rows, int columns, char *first_generation, char *first_generat
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 1;
             else
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
-
-            /* printf("mpirank=%2d Trank=%2d (total=%2d). My i is %d and my j is %d\n", rank, omp_get_thread_num(), omp_get_num_threads(), i, j); */
         }
     }
 }
 
-/****************************************************************
- * Prints the entire grid to the terminal. Used for debugging
- ****************************************************************/
+/////////////////////////////////////////////////////////////////
+// Prints the entire grid to the terminal. Used for debugging
+/////////////////////////////////////////////////////////////////
 void inline 
 Print_grid(int rows, int columns, char *life)
 {
@@ -494,12 +489,12 @@ Print_grid(int rows, int columns, char *life)
     printf("\n");
 }
 
-/*************************************************************************************
- * Produces the next generation. It checks the contents of life,
- * calculates the results, and stores them in life_copy. The living organisms
- * are represented by a 1, and the dead organisms by a 0. This function only
- * calculates the inner organisms, while we wait to receive all the halo information
- *************************************************************************************/
+//////////////////////////////////////////////////////////////////////////////////////
+// Produces the next generation. It checks the contents of life,
+// calculates the results, and stores them in life_copy. The living organisms
+// are represented by a 1, and the dead organisms by a 0. This function only
+// calculates the inner organisms, while we wait to receive all the halo information
+//////////////////////////////////////////////////////////////////////////////////////
 int inline 
 Next_generation_inner(int rows, int columns, char *life, char *life_copy)
 {
@@ -530,11 +525,8 @@ Next_generation_inner_noCollapse(int rows, int columns, char* life, char* life_c
 {
     int neighbors, i, j, lsum = 0;
     char same = 1;
-    int trank = omp_get_num_threads();
-    int trows = (rows - 2) / omp_get_num_threads();
-    int start = trank * columns + 2;
 
-    for (i = start; i < rows - 2; i++) {
+    for (i = 2; i < rows - 2; i++) {
         for (j = 2; j < columns - 2; j++) {
             neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
                 *(life + i * columns + (j - 1)) + *(life + i * columns + (j + 1)) +
@@ -553,16 +545,16 @@ Next_generation_inner_noCollapse(int rows, int columns, char* life, char* life_c
     
     return lsum;
 }
-/****************************************************************************************
- * Calculates the organisms only at the borders, after receiving all the halo elements
- ****************************************************************************************/
+/////////////////////////////////////////////////////////////////////////////////////////
+// Calculates the organisms only at the borders, after receiving all the halo elements
+/////////////////////////////////////////////////////////////////////////////////////////
 int inline 
 Next_generation_outer(int rows, int columns, char *life, char *life_copy)
 {
     int neighbors, i, lsum = 0;
     char same = 1;
 
-    /* Upper row */
+    // Upper row
     for (i = 1; i < columns - 1; i++) {
         neighbors = *(life + i - 1) + *(life + i) + *(life + i + 1) +
             *(life + columns + i - 1) + /* you are here */          *(life + columns + i + 1) +
@@ -576,7 +568,7 @@ Next_generation_outer(int rows, int columns, char *life, char *life_copy)
         same = same && (*(life + columns + i) == *(life_copy + columns + i));
     }
 
-    /* Left column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
+    // Left column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows
     for (i = 2; i < rows - 2; i++) {
         neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
             *(life + columns * i) + /* you are here */                *(life + columns * i + 2) +
@@ -590,7 +582,7 @@ Next_generation_outer(int rows, int columns, char *life, char *life_copy)
         same = same && (*(life + columns * i + 1) == *(life_copy + columns * i + 1));
     }
 
-    /* Right column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows */
+    // Right column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows
     for (i = 2; i < rows - 2; i++) {
         neighbors = *(life + columns * i - 3) + *(life + columns * i - 2) + *(life + columns * i - 1) +
             *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1) +
@@ -604,7 +596,7 @@ Next_generation_outer(int rows, int columns, char *life, char *life_copy)
         same = same && (*(life + columns * (i + 1) - 2) == *(life_copy + columns * (i + 1) - 2));
     }
 
-    /* Bottom row */
+    // Bottom row
     for (i = 1; i < columns - 1; i++) {
         neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1) +
             *(life + columns * (rows - 2) + i - 1) + /* you are here */                   *(life + columns * (rows - 2) + i + 1) +
