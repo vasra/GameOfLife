@@ -16,13 +16,10 @@
 
 void Initial_state(int rows, int columns, char *first_generation, char *first_generation_copy, int seed, MPI_Comm *cartesian2D, int rank);
 void Print_grid(int rows, int columns, char *life);
-int inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
-int inline Next_generation_inner_noCollapse(int rows, int columns, char* life, char* life_copy);
-int inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
-void inline Swap(char **a, char **b);
+void inline Next_generation_inner(int rows, int columns, char *life, char *life_copy);
+void inline Next_generation_outer(int rows, int columns, char *life, char *life_copy);
 
-int 
-main()
+int main()
 {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ARRAYS FOR THE CARTESIAN TOPOLOGY
@@ -65,14 +62,12 @@ main()
      // statuses                                    - array holding the output of the Waitall operation
      // t1, t2                                      - used for MPI_Wtime
      // root                                        - used to check if the number of processes is a perfect square
-     // local_sum, global_sum                       - sums used in the MPI_Allreduce operation
      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     MPI_Datatype   row_datatype, column_datatype;
     MPI_Request    receive_requests_even[8], send_requests_even[8], receive_requests_odd[8], send_requests_odd[8];
     MPI_Status     statuses[8];
     double         t1, t2, root;
-    int            local_sum = 0, global_sum = 0;
     
     // Our Cartesian topology will be a torus, so both fields of "periods" array will have a value of 1
     periods[0] = periods[1] = 1;
@@ -86,7 +81,6 @@ main()
     MPI_Comm_size(MPI_COMM_WORLD, &processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-#ifdef BLOCKS
     // If the number of processes is a perfect square, arrange them evenly in a NXN fashion. Otherwise, there are no restrictions
     root = sqrt((double)processes);
 
@@ -94,10 +88,6 @@ main()
         dim_size[0] = dim_size[1] = (int)root;
     else
         dim_size[0] = dim_size[1] = 0;
-#else
-    dim_size[0] = processes;
-    dim_size[1] = 1;
-#endif
 
     // Let MPI decide which is the best arrangement according to the number of processes and dimensions
     if ( MPI_Dims_create(processes, NDIMS, dim_size) != MPI_SUCCESS ) {
@@ -112,25 +102,9 @@ main()
     MPI_Cart_create(MPI_COMM_WORLD, NDIMS, dim_size, periods, reorder, &cartesian2D);
     MPI_Cart_coords(cartesian2D, rank, NDIMS, coords);
 
-#ifdef BLOCKS
     // We add 2 to each dimension in order to include the halo rows and columns
     rows = (SIZE / dim_size[0]) + 2;
     columns = (SIZE /dim_size[1]) + 2;
-#else
-    // If the size of the grid divides evely by the number of processes, then every process gets the same amount of rows...
-    if (SIZE % processes == 0)
-        rows = SIZE / processes;
-    else
-    {
-        // ...otherwise, the last process will get a few more rows
-        if (rank != processes - 1)
-            rows = SIZE / processes;
-        else
-            rows = SIZE - (SIZE / processes) * (processes - 1);
-    }
-    rows += 2;
-    columns = SIZE + 2;
-#endif
 
     // Calculate the coordinates and ranks of all neighbors
     north[0] = coords[0] - 1;
@@ -179,20 +153,6 @@ main()
     // Generate the first generation according to the random seed
     seed = rank + 2;
     Initial_state(rows, columns, life, life_copy, seed, &cartesian2D, rank);
-
-#ifdef ALL_REDUCE
-    if (rank != 0)
-        MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
-    else {
-        int temp;
-        MPI_Status status;
-        for (int i = 1; i < processes; i++) {
-            MPI_Recv(&temp, processes - 1, MPI_INT, i, i, cartesian2D, &status);
-            printf("local sum of process %d is %d\n", i, temp);
-        }
-        printf("Global sum is %d\n", global_sum);
-    }
-#endif
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // We implement persistent communication, since the neighboring processes will always remain the same through the execution of the program
@@ -319,39 +279,28 @@ main()
             MPI_Start(&send_requests_even[6]);
             MPI_Start(&send_requests_even[7]);
 
-            local_sum = Next_generation_inner(rows, columns, life, life_copy);
-
             MPI_Waitall(8, receive_requests_even, statuses);
 
-            local_sum += Next_generation_outer(rows, columns, life, life_copy);
-
 #ifdef DEBUG_GRID
-#ifdef BLOCKS
             // Print the grid of every process
             if (rank == 0) {
                 printf("Generation %d:\n", generation);
                 MPI_Status status;
                 char* process2 = (char*)malloc(rows * columns * sizeof(char));
-                int lsum;
                 printf("The grid of process 0 is:\n");
                 Print_grid(rows, columns, life_copy);
-                printf("Local sum of process 0 is %d\n\n", local_sum);
 
                 for (int i = 1; i < processes; i++) {
                     MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
                     printf("The grid of process %d is:\n", i);
                     Print_grid(rows, columns, process2);
-                    MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
-                    printf("Local sum of process %d is %d\n\n", i, lsum);
 
                 }
                 free(process2);
             }
             else {
                 MPI_Send(life_copy, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
-                MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
             }
-#endif
 #endif
             /////////////////////////////////////////////////////////////////////////////////////////////////
             // Swap the addresses of the two tables. That way, we avoid copying the contents
@@ -360,9 +309,7 @@ main()
             /////////////////////////////////////////////////////////////////////////////////////////////////
             //Swap(&life, &life_copy);
             std::swap(life, life_copy);
-            if (generation % 10 == 0)
-                MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
-
+            
             MPI_Waitall(8, send_requests_even, statuses);
         }
         else {
@@ -384,39 +331,27 @@ main()
             MPI_Start(&send_requests_odd[6]);
             MPI_Start(&send_requests_odd[7]);
 
-            local_sum = Next_generation_inner(rows, columns, life, life_copy);
-
             MPI_Waitall(8, receive_requests_odd, statuses);
 
-            local_sum += Next_generation_outer(rows, columns, life, life_copy);
-
 #ifdef DEBUG_GRID
-#ifdef BLOCKS
             // Print the grid of every process
             if (rank == 0) {
                 printf("Generation %d:\n", generation);
                 MPI_Status status;
                 char* process2 = (char*)malloc(rows * columns * sizeof(char));
-                int lsum;
                 printf("The grid of process 0 is:\n");
                 Print_grid(rows, columns, life_copy);
-                printf("Local sum of process 0 is %d\n\n", local_sum);
 
                 for (int i = 1; i < processes; i++) {
                     MPI_Recv(process2, rows * columns, MPI_CHAR, i, i, cartesian2D, &status);
                     printf("The grid of process %d is:\n", i);
                     Print_grid(rows, columns, process2);
-                    MPI_Recv(&lsum, 1, MPI_INT, i, i, cartesian2D, &status);
-                    printf("Local sum of process %d is %d\n\n", i, lsum);
-
                 }
                 free(process2);
             }
             else {
                 MPI_Send(life_copy, rows * columns, MPI_CHAR, 0, rank, cartesian2D);
-                MPI_Send(&local_sum, 1, MPI_INT, 0, rank, cartesian2D);
             }
-#endif
 #endif
             /////////////////////////////////////////////////////////////////////////////////////////////////
             // Swap the addresses of the two tables. That way, we avoid copying the contents
@@ -425,8 +360,6 @@ main()
             /////////////////////////////////////////////////////////////////////////////////////////////////
             //Swap(&life, &life_copy);
             std::swap(life, life_copy);
-            if (generation % 10 == 0)
-                MPI_Allreduce(&local_sum, &global_sum, 1, MPI_INT, MPI_SUM, cartesian2D);
 
             MPI_Waitall(8, send_requests_odd, statuses);
         }
@@ -456,10 +389,9 @@ Initial_state(int rows, int columns, char *first_generation, char *first_generat
 {
     float probability;
     srand(seed);
-    int i, j, lsum = 0;
 
-    for (i = 0; i < rows; i++) {
-        for (j = 0; j < columns; j++) {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < columns; j++) {
             // Initialize all halo values to 0. The rest will be assigned values randomly
             if (i == 0 || j == 0 || i == rows - 1 || j == columns - 1) {
                 *(first_generation + i * columns + j) = *(first_generation_copy + i * columns + j) = 0;
@@ -496,14 +428,13 @@ Print_grid(int rows, int columns, char *life)
 // are represented by a 1, and the dead organisms by a 0. This function only
 // calculates the inner organisms, while we wait to receive all the halo information
 //////////////////////////////////////////////////////////////////////////////////////
-int inline 
+void inline 
 Next_generation_inner(int rows, int columns, char *life, char *life_copy)
 {
-    int neighbors, i, j, lsum = 0;
-    char same = 1;
+    int neighbors;
 
-    for (i = 2; i < rows - 2; i++) {
-        for (j = 2; j < columns - 2; j++) {
+    for (int i = 2; i < rows - 2; i++) {
+        for (int j = 2; j < columns - 2; j++) {
             neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
                 *(life + i * columns + (j - 1)) + *(life + i * columns + (j + 1)) +
                 *(life + (i + 1) * columns + (j - 1)) + *(life + (i + 1) * columns + j) + *(life + (i + 1) * columns + (j + 1));
@@ -512,113 +443,61 @@ Next_generation_inner(int rows, int columns, char *life, char *life_copy)
                 *(life_copy + i * columns + j) = 1;
             else
                 *(life_copy + i * columns + j) = 0;
-
-            same = same && (*(life + i * columns + j) == *(life_copy + i * columns + j));
         }
     }
-
-    lsum += same;
-    return lsum;
 }
 
-int inline 
-Next_generation_inner_noCollapse(int rows, int columns, char* life, char* life_copy)
-{
-    int neighbors, i, j, lsum = 0;
-    char same = 1;
-
-    for (i = 2; i < rows - 2; i++) {
-        for (j = 2; j < columns - 2; j++) {
-            neighbors = *(life + (i - 1) * columns + (j - 1)) + *(life + (i - 1) * columns + j) + *(life + (i - 1) * columns + (j + 1)) +
-                *(life + i * columns + (j - 1)) + *(life + i * columns + (j + 1)) +
-                *(life + (i + 1) * columns + (j - 1)) + *(life + (i + 1) * columns + j) + *(life + (i + 1) * columns + (j + 1));
-
-            if (neighbors == 3 || (neighbors == 2 && *(life_copy + i * columns + j) == 1))
-                *(life_copy + i * columns + j) = 1;
-            else
-                *(life_copy + i * columns + j) = 0;
-
-            same = same && (*(life + i * columns + j) == *(life_copy + i * columns + j));
-        }
-    }
-
-    lsum += same;
-    
-    return lsum;
-}
 /////////////////////////////////////////////////////////////////////////////////////////
 // Calculates the organisms only at the borders, after receiving all the halo elements
 /////////////////////////////////////////////////////////////////////////////////////////
-int inline 
+void inline 
 Next_generation_outer(int rows, int columns, char *life, char *life_copy)
 {
-    int neighbors, i, lsum = 0;
-    char same = 1;
-
     // Upper row
-    for (i = 1; i < columns - 1; i++) {
-        neighbors = *(life + i - 1) + *(life + i) + *(life + i + 1) +
-            *(life + columns + i - 1) + /* you are here */          *(life + columns + i + 1) +
+    for (int i = 1; i < columns - 1; i++) {
+        int neighbors = *(life + i - 1)       + *(life + i)               + *(life + i + 1) +
+            *(life + columns + i - 1)     + /* you are here */          *(life + columns + i + 1) +
             *(life + columns * 2 + i - 1) + *(life + columns * 2 + i) + *(life + columns * 2 + i + 1);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns + i) == 1))
             *(life_copy + columns + i) = 1;
         else
             *(life_copy + columns + i) = 0;
-
-        same = same && (*(life + columns + i) == *(life_copy + columns + i));
     }
 
     // Left column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows
-    for (i = 2; i < rows - 2; i++) {
-        neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
-            *(life + columns * i) + /* you are here */                *(life + columns * i + 2) +
-            *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
+    for (int i = 2; i < rows - 2; i++) {
+        int neighbors = *(life + columns * (i - 1)) + *(life + columns * (i - 1) + 1) + *(life + columns * (i - 1) + 2) +
+                    *(life + columns * i)       + /* you are here */                *(life + columns * i + 2) +
+                    *(life + columns * (i + 1)) + *(life + columns * (i + 1) + 1) + *(life + columns * (i + 1) + 2);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * i + 1) == 1))
             *(life_copy + columns * i + 1) = 1;
         else
             *(life_copy + columns * i + 1) = 0;
-
-        same = same && (*(life + columns * i + 1) == *(life_copy + columns * i + 1));
     }
 
     // Right column. i starts from 2 and ends at rows - 2 because we do not want to include the first and last elements of the column, as they are calculated with the top and bottom rows
-    for (i = 2; i < rows - 2; i++) {
-        neighbors = *(life + columns * i - 3) + *(life + columns * i - 2) + *(life + columns * i - 1) +
-            *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1) +
-            *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
+    for (int i = 2; i < rows - 2; i++) {
+        int neighbors = *(life + columns * i - 3)       + *(life + columns * i - 2)       + *(life + columns * i - 1) +
+                    *(life + columns * (i + 1) - 3) + /* you are here */                *(life + columns * (i + 1) - 1) +
+                    *(life + columns * (i + 2) - 3) + *(life + columns * (i + 2) - 2) + *(life + columns * (i + 2) - 1);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (i + 1) - 2) == 1))
             *(life_copy + columns * (i + 1) - 2) = 1;
         else
             *(life_copy + columns * (i + 1) - 2) = 0;
-
-        same = same && (*(life + columns * (i + 1) - 2) == *(life_copy + columns * (i + 1) - 2));
     }
 
     // Bottom row
-    for (i = 1; i < columns - 1; i++) {
-        neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1) +
-            *(life + columns * (rows - 2) + i - 1) + /* you are here */                   *(life + columns * (rows - 2) + i + 1) +
-            *(life + columns * (rows - 1) + i - 1) + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
+    for (int i = 1; i < columns - 1; i++) {
+        int neighbors = *(life + columns * (rows - 3) + i - 1) + *(life + columns * (rows - 3) + i) + *(life + columns * (rows - 3) + i + 1) +
+            *(life + columns * (rows - 2) + i - 1)         + /* you are here */                   *(life + columns * (rows - 2) + i + 1) +
+            *(life + columns * (rows - 1) + i - 1)         + *(life + columns * (rows - 1) + i) + *(life + columns * (rows - 1) + i + 1);
 
         if (neighbors == 3 || (neighbors == 2 && *(life_copy + columns * (rows - 2) + i) == 1))
             *(life_copy + columns * (rows - 2) + i) = 1;
         else
             *(life_copy + columns * (rows - 2) + i) = 0;
-
-        same = same && (*(life + columns * (rows - 2) + i) == *(life_copy + columns * (rows - 2) + i));
     }
-
-    lsum += same;
-    return lsum;
-}
-
-void inline 
-Swap(char **a, char **b)
-{
-    char *temp = *a;
-    *a = *b;
-    *b = temp;
 }

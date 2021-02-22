@@ -11,7 +11,11 @@
 
 //#define DEBUG
 
+#define SHARED
+
 __global__ void nextGen(char* d_life, char* d_life_copy, const int size, int nblocks, dim3 dimBl) {
+#ifndef SHARED
+
     int neighbors = 0;
     int first_in_row, down, up, left, right, upright, upleft, downright, downleft;
 
@@ -43,6 +47,17 @@ __global__ void nextGen(char* d_life, char* d_life_copy, const int size, int nbl
             else
                 *(d_life_copy + cell) = 0;
     }
+#else
+    int lrows = dimBl.y;
+    int lcolumns = dimBl.x;
+    __shared__ char* local = (char*)malloc(lrows * lcolumns * sizeof(char));
+
+    for (int i = 0; i < lrows; i++) {
+        for (int j = 0; j < lcolumns; j++) {
+
+        }
+    }
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
