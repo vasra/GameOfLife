@@ -9,4 +9,6 @@
 #include <timestamp.h>
 #include "device_launch_parameters.h"
 
-__global__ void nextGen(char* d_life, char* d_life_copy, const int size);
+__global__ void copyHaloRows(char* d_life, const int size);
+__global__ void copyHaloColumns(char* d_life, const int size);
+__global__ void nextGen(char* d_life, char* d_life_copy, dim3 gridSize);

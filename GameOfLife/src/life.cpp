@@ -12,9 +12,7 @@
 constexpr int size = 840;
 constexpr int generations = 2000;
 constexpr int nthreads = 64;
-constexpr int nblocks = size * size / nthreads;
-const     int blocksPerRow = size / nthreads;
-//dim3 dimBl(blocksPerSide, blocksPerSide);
+constexpr int nblocks = ceil((size + 2)* (size + 2) / nthreads);
 #else
 constexpr int size = 8;
 constexpr int generations = 2;
@@ -25,16 +23,14 @@ dim3 dimBl(blockSide, blockSide);
 #endif
 
 int main() {
-    
-    // Pointers to our 2D grid, and its necessary copy
+    // Pointer to the 2D grid. Only one is needed in the host.
     // We add 2 to each side, in order to include the halo rows and columns
-    char *h_life = (char*)malloc((size + 2) * (size + 2) * sizeof(char) );
-    char *h_life_copy = (char*)malloc((size + 2)* (size + 2) * sizeof(char) );
+    char *h_life = (char*)malloc((size + 2) * (size + 2) * sizeof(char));
 
-    // Produce the first generation randomly
-    Initial_state(size, h_life, h_life_copy);
+    // Produce the first generation randomly in the host
+    Initial_state(size, h_life);
     
-    float msecs = GameOfLife(size, h_life, h_life_copy, nblocks, generations);
+    float msecs = GameOfLife(size, h_life, nblocks, generations);
 
     printf("Elapsed time is %.2f msecs\n", msecs);
 
@@ -49,7 +45,7 @@ int main() {
 // Randomly produces the first generation. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 /////////////////////////////////////////////////////////////////
-void Initial_state(int size, char * h_life, char * h_life_copy) {
+void Initial_state(int size, char* h_life) {
     float randomProbability = 0.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -59,13 +55,13 @@ void Initial_state(int size, char * h_life, char * h_life_copy) {
         for (int j = 0; j < size; j++) {
             // Initialize all halo values to 0. The rest will be assigned values randomly.
             if (i == 0 || i == size - 1 || j == 0 || j == size - 1) {
-                *(h_life + i * size + j) = *(h_life_copy + i * size + j) = 0;
+                *(h_life + i * size + j) = 0;
             } else {
                 randomProbability = static_cast<float>(probability(gen));
                 if (randomProbability >= 0.5f)
-                    *(h_life + i * size + j) = *(h_life_copy + i * size + j) = 1;
+                    *(h_life + i * size + j) = 1;
                 else
-                    *(h_life + i * size + j) = *(h_life_copy + i * size + j) = 0;
+                    *(h_life + i * size + j) = 0;
             }
         }
     }
@@ -90,41 +86,73 @@ void Print_grid(int size, char * h_life) {
 // calculates the results, and stores them in d_life_copy. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 //////////////////////////////////////////////////////////////////////////////////////
-float GameOfLife(const int size, char* h_life, char* h_life_copy, int nblocks, dim3 dimBl, int generations) {
+float GameOfLife(const int size, char* h_life, int nblocks, int generations) {
     // The grids that will be copied to the GPU
     char* d_life;
     char* d_life_copy;
     cudaError_t err;
 
-    err = cudaMalloc((void**)&d_life, size * size * sizeof(char));
+    err = cudaMalloc((void**)&d_life, (size + 2) * (size + 2) * sizeof(char));
     if (err != cudaSuccess) {
         fprintf(stderr, "Could not allocate CUDA memory, with error code %d\n", err);
         return err;
     }
 
-    err = cudaMalloc((void**)&d_life_copy, size * size * sizeof(char));
+    err = cudaMemcpy(d_life, h_life, (size + 2) * (size + 2) * sizeof(char), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Could not copy to GPU memory, with error code %d\n", err);
+        return err;
+    }
+
+    err = cudaMalloc((void**)&d_life_copy, (size + 2) * (size + 2) * sizeof(char));
     if (err != cudaSuccess) {
         fprintf(stderr, "Could not allocate CUDA memory, with error code %d\n", err);
         return err;
     }
 
-    err = cudaMemcpy(d_life, h_life, sizeof(char) * size * size, cudaMemcpyHostToDevice);
+    err = cudaMemcpy(d_life_copy, h_life, (size + 2) * (size + 2) * sizeof(char), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
         fprintf(stderr, "Could not copy to GPU memory, with error code %d\n", err);
         return err;
     }
 
-    err = cudaMemcpy(d_life_copy, h_life_copy, sizeof(char) * size * size, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess) {
-        fprintf(stderr, "Could not copy to GPU memory, with error code %d\n", err);
-        return err;
+    int copyingBlocksRows = size / nthreads;
+    int copyingBlocksColumns = ceil((size + 2) / nthreads);
+    dim3 gridSize;
+    dim3 blockDims;
+    switch (nthreads) {
+    case 32:
+        blockDims.x = 8;
+        blockDims.y = 4;
+        blockDims.z = 1;
+        break;
+    case 64:
+        blockDims.x = 8;
+        blockDims.y = 8;
+        blockDims.z = 1;
+        break;
+    case 128:
+        blockDims.x = 16;
+        blockDims.y = 8;
+        blockDims.z = 1;
+        break;
+    case 256:
+        blockDims.x = 16;
+        blockDims.y = 16;
+        blockDims.z = 1;
+        break;
+    default:
+        break;
     }
+    
+    int sharedMemBytes = (size + 2) * (size + 2) * sizeof(char);
 
-    timestamp t_start;
-    t_start = getTimestamp();
+    timestamp t_start = getTimestamp();
 
     for (int gen = 0; gen < generations; gen++) {
-        nextGen << <nblocks, dimBl >> > (d_life, d_life_copy, size, nblocks, dimBl, generations);
+        copyHaloRows<<<copyingBlocksRows, nthreads>>>(d_life, size);
+        copyHaloColumns<<<copyingBlocksColumns, nthreads>>>(d_life, size);
+        nextGen<<<gridSize, nthreads, sharedMemBytes>>> (d_life, size, gridSize);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
          // Swap the addresses of the two tables. That way, we avoid copying the contents
