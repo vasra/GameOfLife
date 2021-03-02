@@ -116,43 +116,63 @@ float GameOfLife(const int size, char* h_life, int nblocks, int generations) {
         return err;
     }
 
+    // How many blocks will be used to copy the halo rows and columns respectively
     int copyingBlocksRows = size / nthreads;
     int copyingBlocksColumns = ceil((size + 2) / nthreads);
-    dim3 gridSize;
-    dim3 blockDims;
+
+    // The layout of the threads in the block. Depends on
+    // how many threads we decide to use for each block
+    dim3 threadsInBlock;
     switch (nthreads) {
+    case 16:
+        threadsInBlock.x = 4;
+        threadsInBlock.y = 4;
+        threadsInBlock.z = 1;
+        break;
     case 32:
-        blockDims.x = 8;
-        blockDims.y = 4;
-        blockDims.z = 1;
+        threadsInBlock.x = 8;
+        threadsInBlock.y = 4;
+        threadsInBlock.z = 1;
         break;
     case 64:
-        blockDims.x = 8;
-        blockDims.y = 8;
-        blockDims.z = 1;
+        threadsInBlock.x = 8;
+        threadsInBlock.y = 8;
+        threadsInBlock.z = 1;
         break;
     case 128:
-        blockDims.x = 16;
-        blockDims.y = 8;
-        blockDims.z = 1;
+        threadsInBlock.x = 16;
+        threadsInBlock.y = 8;
+        threadsInBlock.z = 1;
         break;
     case 256:
-        blockDims.x = 16;
-        blockDims.y = 16;
-        blockDims.z = 1;
+        threadsInBlock.x = 16;
+        threadsInBlock.y = 16;
+        threadsInBlock.z = 1;
+        break;
+    case 512:
+        threadsInBlock.x = 32;
+        threadsInBlock.y = 16;
+        threadsInBlock.z = 1;
         break;
     default:
         break;
     }
     
-    int sharedMemBytes = (size + 2) * (size + 2) * sizeof(char);
+    // The layout of the blocks in the grid. We subtract 2 from each
+    // coordinate, to compensate for the halo rows and columns
+    int gridX = static_cast<int>(ceil(size / (threadsInBlock.x - 2)));
+    int gridY = static_cast<int>(ceil(size / (threadsInBlock.y - 2)));
+    dim3 gridDims{ gridX, gridY, 1 };
+
+    // The number of bytes of shared memory that the block will use
+    int sharedMemBytes = threadsInBlock.x * threadsInBlock.y * sizeof(char);
 
     timestamp t_start = getTimestamp();
 
     for (int gen = 0; gen < generations; gen++) {
         copyHaloRows<<<copyingBlocksRows, nthreads>>>(d_life, size);
         copyHaloColumns<<<copyingBlocksColumns, nthreads>>>(d_life, size);
-        nextGen<<<gridSize, nthreads, sharedMemBytes>>> (d_life, size, gridSize);
+        nextGen<<<gridDims, nthreads, sharedMemBytes>>> (d_life, d_life_copy, size);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
          // Swap the addresses of the two tables. That way, we avoid copying the contents

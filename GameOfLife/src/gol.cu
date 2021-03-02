@@ -22,27 +22,34 @@ __global__ void copyHaloColumns(char* d_life, const int size) {
     }
 }
 
-__global__ void nextGen(char* d_life, char* d_life_copy, dim3 gridSize) {
+__global__ void nextGen(char* d_life, char* d_life_copy, int size) {
     // Shared memory grid
     extern __shared__ char sgrid[];
 
-    // The global x and y coordinates of the thread
-    int x = blockId.x * blockDim.x + threadId.x;
-    int y = blockId.y * blockDim.y + threadId.y;
+    int X = blockId.x * blockDim.x + threadId.x;
+    int Y = blockId.y * blockDim.y + threadId.y;
 
-    int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+    // The global ID of the thread in the grid
+    int threadIdGlobal = (size + 2) * X + Y;
+
+    // The local ID of the thread in the block
+    int threadIdLocal = threadId.x * blockDim.y + threadId.y;
+
     int neighbours;
 
     if (threadID <= (size + 2) * (size + 2))
-        sgrid[threadID] = d_life[threadID];
+        sgrid[threadIdLocal] = d_life[threadIdGlobal];
 
-    syncthreads();
+    __syncthreads();
 
-    if((threadID > size + 2) && (threadID < )
+    //if((threadID > size + 2) && (threadID < )
         neighbours = sgrid[threadID - size - 3] + sgrid[threadID - size - 2] + sgrid[threadID - size - 1] +
                      sgrid[threadID - 1]        + /* you are here */           sgrid[threadID + 1]        +
                      sgrid[threadID + size - 1] + sgrid[threadID + size]     + sgrid[threadID + size + 1];
 
+        if ((neighbours == 2 && sgrid[threadIdLocal] == 1) || (neighbours == 3))
+            sgrid[threadIdLocal] == 1;
+        else
+            sgrid[threadIdLocal] == 0;
 
-    free(sgrid);
 }
