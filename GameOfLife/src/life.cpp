@@ -12,7 +12,7 @@
 constexpr int size = 840;
 constexpr int generations = 2000;
 constexpr int nthreads = 64;
-constexpr int nblocks = ceil((size + 2)* (size + 2) / nthreads);
+constexpr int nblocks = ceil((size + 2) * (size + 2) / nthreads);
 #else
 constexpr int size = 8;
 constexpr int generations = 2;
