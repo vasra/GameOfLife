@@ -36,7 +36,6 @@ int main() {
 
     // Clean up and exit
     free(h_life);
-    free(h_life_copy);
  
     return 0;
 }
