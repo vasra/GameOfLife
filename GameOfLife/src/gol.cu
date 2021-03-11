@@ -43,10 +43,10 @@ __global__ void nextGen(char* d_life, char* d_life_copy, int size) {
     __syncthreads();
 
     // If the thread does not correspond to a halo element, then calculate its neighbours
-    if(threadId.x > 0 && threadIdx.x < blockDim.x - 1 && threadIdx.y > 0 && threadIdx.y < blockDim.y - 1)
-        neighbours = sgrid[threadIdLocal - blockDimx.x - 1] + sgrid[threadIdLocal - blockDimx.x]     + sgrid[threadIdLocal - blockDimx.x + 1] +
+    if(threadIdx.x > 0 && threadIdx.x < blockDim.x - 1 && threadIdx.y > 0 && threadIdx.y < blockDim.y - 1)
+        neighbours = sgrid[threadIdLocal - blockDim.x - 1] + sgrid[threadIdLocal - blockDim.x]     + sgrid[threadIdLocal - blockDim.x + 1] +
                      sgrid[threadIdLocal - 1]               + /* you are here */                       sgrid[threadIdLocal + 1]               +
-                     sgrid[threadIdLocal + blockDimx.x - 1] + sgrid[threadIdLocal + blockDimx.x]     + sgrid[threadIdLocal + blockDimx.x + 1];
+                     sgrid[threadIdLocal + blockDim.x - 1] + sgrid[threadIdLocal + blockDim.x]     + sgrid[threadIdLocal + blockDim.x + 1];
 
         if ((neighbours == 2 && sgrid[threadIdLocal] == 1) || (neighbours == 3))
             sgrid[threadIdLocal] == 1;
