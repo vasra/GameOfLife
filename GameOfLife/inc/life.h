@@ -12,4 +12,4 @@
 
 void Initial_state(int size, char* first_generation);
 void Print_grid(int size, char* life);
-float GameOfLife(const int size, char* life, int nblocks, int generations);
+float GameOfLife(const int size, char* life, int generations);

@@ -1,26 +1,14 @@
 #include <life.h>
-
-//#define DEBUG
+#include <gol.cuh>
 
 ///////////////////////////////////////////////////////////////////////
 // size        - The size of one side of the square grid
 // generations - The number of generations for which the game will run
 // nthreads    - The number of threads per block
-// nblocks     - The number of blocks
 ///////////////////////////////////////////////////////////////////////
-#ifndef DEBUG
 constexpr int size = 840;
 constexpr int generations = 2000;
-constexpr int nthreads = 64;
-constexpr int nblocks = ceil((size + 2) * (size + 2) / nthreads);
-#else
-constexpr int size = 8;
-constexpr int generations = 2;
-constexpr int nthreads = 4;
-constexpr int nblocks = size * size / nthreads;
-const     int blockSide = static_cast<int>(size / sqrt(nblocks));
-dim3 dimBl(blockSide, blockSide);
-#endif
+constexpr int nthreads = 512;
 
 int main() {
     // Pointer to the 2D grid. Only one is needed in the host.
@@ -30,7 +18,7 @@ int main() {
     // Produce the first generation randomly in the host
     Initial_state(size, h_life);
     
-    float msecs = GameOfLife(size, h_life, nblocks, generations);
+    float msecs = GameOfLife(size, h_life, generations);
 
     printf("Elapsed time is %.2f msecs\n", msecs);
 
@@ -85,7 +73,7 @@ void Print_grid(int size, char * h_life) {
 // calculates the results, and stores them in d_life_copy. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 //////////////////////////////////////////////////////////////////////////////////////
-float GameOfLife(const int size, char* h_life, int nblocks, int generations) {
+float GameOfLife(const int size, char* h_life, int generations) {
     // The grids that will be copied to the GPU
     char* d_life;
     char* d_life_copy;
@@ -180,16 +168,6 @@ float GameOfLife(const int size, char* h_life, int nblocks, int generations) {
          /////////////////////////////////////////////////////////////////////////////////////////////////
         std::swap(d_life, d_life_copy);
     }
-
-#ifdef DEBUG
-    cudaMemcpy(h_life, d_life, sizeof(char) * size * size, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_life_copy, d_life_copy, sizeof(char) * size * size, cudaMemcpyDeviceToHost);
-    printf("Generation %d\n", gen);
-    printf("life\n");
-    Print_grid(size, h_life);
-    printf("life_copy\n");
-    Print_grid(size, h_life_copy);
-#endif
 
     err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {

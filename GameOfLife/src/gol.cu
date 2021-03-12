@@ -26,8 +26,8 @@ __global__ void nextGen(char* d_life, char* d_life_copy, int size) {
     // Shared memory grid
     extern __shared__ char sgrid[];
 
-    int X = (blockIdx.x - 2) * blockDim.x + threadIdx.x;
-    int Y = (blockIdx.y - 2) * blockDim.y + threadIdx.y;
+    int X = blockIdx.x * blockDim.x + threadIdx.x;
+    int Y = blockIdx.y * blockDim.y + threadIdx.y;
 
     // The global ID of the thread in the grid
     int threadIdGlobal = (size + 2) * Y + X;
@@ -45,7 +45,7 @@ __global__ void nextGen(char* d_life, char* d_life_copy, int size) {
     // If the thread does not correspond to a halo element, then calculate its neighbours
     if(threadIdx.x > 0 && threadIdx.x < blockDim.x - 1 && threadIdx.y > 0 && threadIdx.y < blockDim.y - 1)
         neighbours = sgrid[threadIdLocal - blockDim.x - 1] + sgrid[threadIdLocal - blockDim.x]     + sgrid[threadIdLocal - blockDim.x + 1] +
-                     sgrid[threadIdLocal - 1]               + /* you are here */                       sgrid[threadIdLocal + 1]               +
+                     sgrid[threadIdLocal - 1]              + /* you are here */                      sgrid[threadIdLocal + 1]              +
                      sgrid[threadIdLocal + blockDim.x - 1] + sgrid[threadIdLocal + blockDim.x]     + sgrid[threadIdLocal + blockDim.x + 1];
 
         if ((neighbours == 2 && sgrid[threadIdLocal] == 1) || (neighbours == 3))
