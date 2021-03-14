@@ -10,6 +10,5 @@
 #include <timestamp.h>
 #include "device_launch_parameters.h"
 
-void Initial_state(int size, char* first_generation);
-void Print_grid(int size, char* life);
+void InitialState(int size, char* first_generation);
 float GameOfLife(const int size, char* life, int generations);

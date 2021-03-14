@@ -4,11 +4,11 @@
 ///////////////////////////////////////////////////////////////////////
 // size        - The size of one side of the square grid
 // generations - The number of generations for which the game will run
-// nthreads    - The number of threads per block
+// threads     - The number of threads per block
 ///////////////////////////////////////////////////////////////////////
 constexpr int size = 840;
 constexpr int generations = 2000;
-constexpr int nthreads = 512;
+constexpr int threads = 512;
 
 int main() {
     // Pointer to the 2D grid. Only one is needed in the host.
@@ -16,7 +16,7 @@ int main() {
     char *h_life = (char*)malloc((size + 2) * (size + 2) * sizeof(char));
 
     // Produce the first generation randomly in the host
-    Initial_state(size, h_life);
+    InitialState(size, h_life);
     
     float msecs = GameOfLife(size, h_life, generations);
 
@@ -32,7 +32,7 @@ int main() {
 // Randomly produces the first generation. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 /////////////////////////////////////////////////////////////////
-void Initial_state(int size, char* h_life) {
+void InitialState(int size, char* h_life) {
     float randomProbability = 0.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -52,20 +52,6 @@ void Initial_state(int size, char* h_life) {
             }
         }
     }
-}
-
-/////////////////////////////////////////////////////////////////
-// Prints the entire grid to the terminal. Used for debugging
-/////////////////////////////////////////////////////////////////
-void Print_grid(int size, char * h_life) {
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            printf("%d ", *(h_life + i * size + j));
-            if ( j == size - 1)
-                printf("\n");
-        }
-    }
-    printf("\n");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -104,13 +90,13 @@ float GameOfLife(const int size, char* h_life, int generations) {
     }
 
     // How many blocks will be used to copy the halo rows and columns respectively
-    int copyingBlocksRows = size / nthreads;
-    int copyingBlocksColumns = ceil((size + 2) / nthreads);
+    int copyingBlocksRows = size / threads;
+    int copyingBlocksColumns = ceil((size + 2) / threads);
 
     // The layout of the threads in the block. Depends on
     // how many threads we decide to use for each block
     dim3 threadsInBlock;
-    switch (nthreads) {
+    switch (threads) {
     case 16:
         threadsInBlock.x = 4;
         threadsInBlock.y = 4;
@@ -157,9 +143,9 @@ float GameOfLife(const int size, char* h_life, int generations) {
     timestamp t_start = getTimestamp();
 
     for (int gen = 0; gen < generations; gen++) {
-        copyHaloRows<<<copyingBlocksRows, nthreads>>>(d_life, size);
-        copyHaloColumns<<<copyingBlocksColumns, nthreads>>>(d_life, size);
-        nextGen<<<gridDims, nthreads, sharedMemBytes>>> (d_life, d_life_copy, size);
+        copyHaloRows<<<copyingBlocksRows, threads>>>(d_life, size);
+        copyHaloColumns<<<copyingBlocksColumns, threads>>>(d_life, size);
+        nextGen<<<gridDims, threads, sharedMemBytes>>> (d_life, d_life_copy, size);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////
          // Swap the addresses of the two tables. That way, we avoid copying the contents
