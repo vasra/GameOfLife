@@ -20,6 +20,20 @@ __global__ void copyHaloColumns(char* d_life, const int size) {
         d_life[(size + 2) * threadID] = d_life[(size + 2) * threadID + size];           // copy rightmost column to left halo column
         d_life[(size + 1) * threadID + (size + 1)] = d_life[(size + 2) * threadID + 1]; // copy leftmost column to right halo column
     }
+
+    // copy corner elements
+    // 1. bottom right -> top left
+    // 2. bottom left  -> top right
+    // 3. top left     -> bottom right
+    // 4. top right    -> bottom left
+    if (threadID == 0)
+        d_life[threadID] = d_life[(size + 2) * size + size];
+    else if (threadID == size + 1)
+        d_life[threadID] = d_life[(size + 2) * size + 1];
+    else if (threadID == (size + 2) * (size + 1) + size + 1)
+        d_life[threadID] = d_life[size + 3];
+    else if (threadID == (size + 2) * size + 1)
+        d_life[threadID] = d_life[size];
 }
 
 __global__ void nextGen(char* d_life, char* d_life_copy, int size) {
