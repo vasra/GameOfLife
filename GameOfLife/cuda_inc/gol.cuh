@@ -7,7 +7,7 @@
 #include <random>
 #include <lcutil.h>
 #include <timestamp.h>
-#include "device_launch_parameters.h"
+#include <device_launch_parameters.h>
 
 __global__ void copyHaloRows(char* d_life, const int size);
 __global__ void copyHaloColumns(char* d_life, const int size);

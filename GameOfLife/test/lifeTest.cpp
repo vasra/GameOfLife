@@ -3,20 +3,19 @@
 #include <assert.h>
 #include <iostream>
 
-void PrintGrid(int size, char* h_life);
-void InitialState(int size, char* h_life);
+constexpr int size = 840;
+constexpr int threads = 512;
 
-int size = 840;
-int threads = 512;
-
-void main() {
+void
+main() {
     std::cout << "Hello world test!" << std::endl;
 }
 
-void copyHaloRowsTest() {
+void
+copyHaloRowsTest() {
     char* h_life = (char*)malloc((size + 2) * (size + 2) * sizeof(char));
     assert(h_life != NULL);
-    InitialState(size, h_life);
+    initialState(size, h_life);
 
     char* d_life;
     cudaError_t err;
@@ -36,7 +35,8 @@ void copyHaloRowsTest() {
 /////////////////////////////////////////////////////////////////
 // Prints the entire grid to the terminal. Used for debugging
 /////////////////////////////////////////////////////////////////
-void PrintGrid(int size, char* h_life) {
+void
+printGrid(int size, char* h_life) {
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             printf("%d ", *(h_life + i * size + j));
@@ -51,7 +51,8 @@ void PrintGrid(int size, char* h_life) {
 // Randomly produces the first generation. The living organisms
 // are represented by a 1, and the dead organisms by a 0.
 /////////////////////////////////////////////////////////////////
-void InitialState(int size, char* h_life) {
+void
+initialState(int size, char* h_life) {
     float randomProbability = 0.0f;
     std::random_device rd;
     std::mt19937 gen(rd());
