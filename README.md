@@ -1,3 +1,4 @@
+# GameOfLife
 Conway's Game Of Life, written in C.
 
 Branches:
